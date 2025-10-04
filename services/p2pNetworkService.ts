@@ -208,7 +208,7 @@ class P2PNetworkService {
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
-                        type: Type.OBJECT, properties: { name: { type: Type.STRING }, objective: { type: 'STRING' }, scope: { type: Type.STRING }, confidence: { type: Type.NUMBER } }
+                        type: Type.OBJECT, properties: { name: { type: Type.STRING }, objective: { type: Type.STRING }, scope: { type: Type.STRING }, confidence: { type: Type.NUMBER } }
                     }
                 }
             });

@@ -1,14 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+// FIX: Correctly import GoogleGenAI and Type from @google/genai
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Signal, Threat, Countermeasure, ObfuscationLayer, SystemStatus, ScanMode, ProtectionStrategy, AudioThreat, MicrophoneStatus, LogEntry, LogType, Traceback, MacroThreat, AIConfig, P2PState, MLInsight, OmegaProtocolState, UserFrequencyBlock } from './types';
-import { sdrDevilService } from './services/sdrDevilService';
-import { audioAnalysisService } from './services/audioAnalysisService';
-import { p2pNetworkService } from './services/p2pNetworkService';
-import { secureCommService } from './services/secureCommService';
+
+// Components
 import Header from './components/Header';
 import SdrDevilControl from './components/SdrDevilControl';
-import AxiomSilenceControl from './components/AxiomSilenceControl';
-import HerdHealthControl from './components/HerdHealthControl';
 import SpectrumAnalyzer from './components/SpectrumAnalyzer';
 import DetectedSignals from './components/DetectedSignals';
 import DetectedThreats from './components/DetectedThreats';
@@ -16,704 +12,442 @@ import ObfuscationLayers from './components/ObfuscationLayers';
 import ActiveCountermeasures from './components/ActiveCountermeasures';
 import Disclaimer from './components/Disclaimer';
 import LogPanel from './components/LogPanel';
-import AxiomTracebackMap from './components/AxiomTracebackMap';
-import AIConfigStrip from './components/AIConfigStrip';
 import SystemDashboard from './components/SystemDashboard';
+import AxiomSilenceControl from './components/AxiomSilenceControl';
+import HerdHealthControl from './components/HerdHealthControl';
 import ContinuityProtocol from './components/ContinuityProtocol';
-import FrequencySafetyControl from './components/FrequencySafetyControl';
 import SystemPersistenceControl from './components/SystemPersistenceControl';
+import AxiomTracebackMap from './components/AxiomTracebackMap';
+import ManagementTabs from './components/ManagementTabs';
+import FrequencySafetyControl from './components/FrequencySafetyControl';
+import FrequencyCatalog from './components/FrequencyCatalog';
+import AIConfigStrip from './components/AIConfigStrip';
 
-declare global {
-    interface Window {
-        initiateOmegaProtocol: (validatorEmail: string, localSmtpConfig: { ip: string, domain: string }) => void;
-        confirmOmegaApproval: (requestId: string, response: string) => void;
-    }
-}
+// Services
+import { sdrDevilService } from './services/sdrDevilService';
+import { audioAnalysisService } from './services/audioAnalysisService';
+import { p2pNetworkService } from './services/p2pNetworkService';
 
+// Types
+import type {
+    Signal,
+    Threat,
+    ObfuscationLayer,
+    Countermeasure,
+    LogEntry,
+    LogType,
+    ScanMode,
+    ProtectionStrategy,
+    P2PState,
+    AudioThreat,
+    MicrophoneStatus,
+    Traceback,
+    AIConfig,
+    MLInsight
+} from './types';
 
 const App: React.FC = () => {
-    // A constant to control the visibility of the high-level failsafe protocol.
-    // Set this to true in source for deployments that require it.
-    const SHOW_CONTINUITY_PROTOCOL = false;
+    // Main state
+    const [isMonitoring, setIsMonitoring] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isProtected, setIsProtected] = useState(false);
+    const [canActivateProtection, setCanActivateProtection] = useState(false);
+    const [isIntelligentScanning, setIsIntelligentScanning] = useState(false);
 
-    const [systemStatus, setSystemStatus] = useState<SystemStatus>('CONNECTING');
-    const [sdrConnected, setSdrConnected] = useState<boolean>(false);
-    const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [isProtected, setIsProtected] = useState<boolean>(false);
-
+    // Data state
     const [signals, setSignals] = useState<Signal[]>([]);
-    const [detectedThreats, setDetectedThreats] = useState<Threat[]>([]);
-    const [activeCountermeasures, setActiveCountermeasures] = useState<Countermeasure[]>([]);
+    const [threats, setThreats] = useState<Threat[]>([]);
     const [obfuscationLayers, setObfuscationLayers] = useState<ObfuscationLayer[]>([]);
-
+    const [countermeasures, setCountermeasures] = useState<Countermeasure[]>([]);
+    const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+    const [mlInsights, setMlInsights] = useState<MLInsight[]>([]);
+    
+    // Config state
     const [scanMode, setScanMode] = useState<ScanMode>('WIDEBAND_SWEEP');
-    const [protectionStrategy, setProtectionStrategy] = useState<ProtectionStrategy>('DECENTRALIZED_OBFUSCATION');
+    const [protectionStrategy, setProtectionStrategy] = useState<ProtectionStrategy>('QUANTUM_NOISE');
+    const [aiConfig, setAiConfig] = useState<AIConfig>({ provider: 'LOCAL_SIMULATED', apiKey: '' });
+    const aiClient = useRef<GoogleGenAI | null>(null);
 
+    // UI State
+    const [activeTab, setActiveTab] = useState('Dashboard');
+    
+    // SDRDevil state
+    const monitoringInterval = useRef<number | null>(null);
+    const totalSignalsProcessed = useRef(0);
+
+    // Audio state
+    const [micStatus, setMicStatus] = useState<MicrophoneStatus>('INACTIVE');
+    const [ambientNoise, setAmbientNoise] = useState(0);
+    const [audioThreats, setAudioThreats] = useState<AudioThreat[]>([]);
+    const audioInterval = useRef<number | null>(null);
+
+    // P2P Network State
     const [p2pState, setP2pState] = useState<P2PState>(p2pNetworkService.getState());
 
-    const [isSilenceProtocolActive, setIsSilenceProtocolActive] = useState<boolean>(false);
-    const [microphoneStatus, setMicrophoneStatus] = useState<MicrophoneStatus>('INACTIVE');
-    const [ambientNoiseLevel, setAmbientNoiseLevel] = useState<number>(0);
-    const [audioThreats, setAudioThreats] = useState<AudioThreat[]>([]);
-    
-    const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-    const [isTracing, setIsTracing] = useState<boolean>(false);
+    // Traceback State
+    const [isTracing, setIsTracing] = useState(false);
     const [tracebackData, setTracebackData] = useState<Traceback | null>(null);
+    
+    // System Persistence
+    const [isAgentDeployed, setIsAgentDeployed] = useState(false);
 
-    const [aiConfig, setAiConfig] = useState<AIConfig>({ provider: 'LOCAL_SIMULATED', apiKey: '' });
-    const [aiClient, setAiClient] = useState<any | null>({}); // Start with simulation client
-    const [showAIConfigStrip, setShowAIConfigStrip] = useState<boolean>(true);
-
-    const [mlAcuity, setMlAcuity] = useState<number>(0);
-    const [mlInsights, setMlInsights] = useState<MLInsight[]>([]);
-    const [totalSignalsProcessed, setTotalSignalsProcessed] = useState<number>(0);
-
-    const [userFrequencyBlocks, setUserFrequencyBlocks] = useState<UserFrequencyBlock[]>([]);
-    const [isProcessingFrequency, setIsProcessingFrequency] = useState<boolean>(false);
-
-    const [isIntelligentScanning, setIsIntelligentScanning] = useState<boolean>(false);
-    const [isDaemonDeployed, setIsDaemonDeployed] = useState<boolean>(false);
-
-    const monitorIntervalRef = useRef<number | null>(null);
-    const audioIntervalRef = useRef<number | null>(null);
-    const lastMlAnalysisSignalCount = useRef<number>(0);
-
-    const addLogEntry = useCallback((message: string, type: LogType = 'INFO') => {
-        setLogEntries(prev => {
-            const newEntry: LogEntry = {
-                id: `log_${Date.now()}_${Math.random()}`,
-                timestamp: Date.now(),
-                message,
-                type,
-            };
-            return [newEntry, ...prev.slice(0, 49)];
-        });
+    // Add log entry utility
+    const addLog = useCallback((message: string, type: LogType = 'SYSTEM') => {
+        setLogEntries(prev => [...prev.slice(-100), { id: `log_${Date.now()}`, timestamp: Date.now(), type, message }]);
     }, []);
 
+    // Effect to initialize AI client when config changes
     useEffect(() => {
-        p2pNetworkService.registerLogger(addLogEntry);
-        secureCommService.registerLogger(addLogEntry);
-
-        const handleP2PUpdate = (newState: P2PState) => {
-            setP2pState(newState);
-            if (newState.macroThreat && !p2pState.macroThreat) {
-                 addLogEntry(`P2P Consensus Reached! Macro-Threat Identified: ${newState.macroThreat.name}`, 'WARN');
-            }
-             if (newState.doomsdayActive && !p2pState.doomsdayActive) {
-                addLogEntry(`AXIOM CONTINUITY PROTOCOL ENGAGED!`, 'ERROR');
-            }
-        };
-        p2pNetworkService.subscribe(handleP2PUpdate);
-
-        const handleOmegaUpdate = (newState: OmegaProtocolState) => {
-            if (newState.isLive) {
-                setSystemStatus('OMEGA_LIVE');
-                addLogEntry('OMEGA PROTOCOL IS LIVE. DIRECT ACTION AUTHORIZED.', 'ERROR');
-            }
-        }
-        secureCommService.subscribe(handleOmegaUpdate);
-
-        window.initiateOmegaProtocol = (validatorEmail, config) => {
-            secureCommService.initiate(
-                validatorEmail,
-                config,
-                p2pNetworkService.getState().sentinels,
-                { threats: detectedThreats, macroThreat: p2pState.macroThreat }
-            );
-        };
-        window.confirmOmegaApproval = secureCommService.confirmApproval;
-
-        addLogEntry('Initializing Ghost Veil Axiom Resolver...', 'SYSTEM');
-        addLogEntry('Defaulting to Standard Local Model (GPT-2 Simulated).', 'AI');
-        
-        sdrDevilService.connect().then(connected => {
-            setSdrConnected(connected);
-            setSystemStatus(connected ? 'STANDBY' : 'ERROR');
-            addLogEntry(connected ? 'SDRDevil Node connection established.' : 'SDRDevil Node connection failed.', connected ? 'SYSTEM' : 'ERROR');
-        });
-
-        addLogEntry(`P2P Axiom Network Initialized. Awaiting user opt-in.`, 'NETWORK');
-
-        return () => {
-            p2pNetworkService.unsubscribe(handleP2PUpdate);
-            secureCommService.unsubscribe(handleOmegaUpdate);
-        }
-    }, [addLogEntry, p2pState.macroThreat, p2pState.doomsdayActive, detectedThreats]);
-
-    useEffect(() => {
-        if (isSilenceProtocolActive && microphoneStatus === 'ACTIVE') {
-            audioIntervalRef.current = window.setInterval(() => {
-                const analysis = audioAnalysisService.getAnalysis();
-                if (analysis) {
-                    setAmbientNoiseLevel(analysis.ambientNoiseLevel);
-                    if (analysis.newThreats.length > 0) {
-                        const threatsWithIds: AudioThreat[] = analysis.newThreats.map(t => ({
-                            ...t,
-                            id: `audio_${Date.now()}_${Math.random()}`,
-                            timestamp: Date.now()
-                        }));
-                        setAudioThreats(prev => [...prev.slice(-10), ...threatsWithIds]);
-                        addLogEntry(`Aural scan detected potential ${threatsWithIds[0].type}.`, 'WARN');
-                    }
-                }
-            }, 250);
-        } else {
-            if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
-        }
-        return () => { if (audioIntervalRef.current) clearInterval(audioIntervalRef.current) };
-    }, [isSilenceProtocolActive, microphoneStatus, addLogEntry]);
-    
-    const handleApplyAIConfig = useCallback((newConfig: AIConfig) => {
-        setAiConfig(newConfig);
-        setAiClient(null); // Clear previous client
-
-        if (newConfig.provider === 'GEMINI') {
-            setShowAIConfigStrip(false);
+        if (aiConfig.provider === 'GEMINI' && process.env.API_KEY) {
             try {
-                if (!process.env.API_KEY) {
-                    throw new Error("API_KEY environment variable not set.");
-                }
-                const gemini = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                setAiClient(gemini);
-                addLogEntry('Successfully configured Gemini AI Core.', 'AI');
-            } catch (e) {
-                const errorMessage = e instanceof Error ? e.message : String(e);
-                addLogEntry(`Failed to configure Gemini AI: ${errorMessage}. Falling back to simulation.`, 'ERROR');
-                setAiClient({});
-                setAiConfig({provider: 'LOCAL_SIMULATED', apiKey: ''});
+                // FIX: Initialize GoogleGenAI client correctly
+                aiClient.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                addLog('Gemini AI Core initialized successfully.', 'AI');
+            } catch (error) {
+                addLog('Failed to initialize Gemini AI Core.', 'ERROR');
+                console.error(error);
             }
         } else {
-            setAiClient({});
-            addLogEntry('Switched to Standard Local Model (GPT-2 Simulated).', 'AI');
+            aiClient.current = null;
         }
-    }, [addLogEntry]);
+    }, [aiConfig, addLog]);
 
-    const analyzeThreatsWithAI = useCallback(async (currentSignals: Signal[]) => {
-        if (systemStatus === 'OMEGA_LIVE') return;
-        setIsLoading(true); setSystemStatus('ANALYZING');
-        addLogEntry('Analyzing signal intercepts with AI Core...', 'AI');
-        
-        const significantSignals = currentSignals.slice(-100).filter(s => s.amplitude > 60 && s.snr > 25);
+    // P2P Service Subscription
+    useEffect(() => {
+        p2pNetworkService.registerLogger(addLog);
+        const handleP2PUpdate = (state: P2PState) => setP2pState(state);
+        p2pNetworkService.subscribe(handleP2PUpdate);
+        return () => p2pNetworkService.unsubscribe(handleP2PUpdate);
+    }, [addLog]);
+
+
+    const analyzeSignalsAndThreats = useCallback(async (newSignals: Signal[]) => {
+        if (newSignals.length === 0) return;
+        addLog(`Analyzing ${newSignals.length} new signals...`, 'AI');
+        setIsLoading(true);
+
+        const significantSignals = newSignals.filter(s => s.amplitude > 60 || s.snr > 30);
         if (significantSignals.length === 0) {
-            setIsLoading(false); setSystemStatus('STANDBY');
-            addLogEntry('No significant signals found for analysis.', 'INFO');
+            addLog('No significant signals detected in this batch.');
+            setIsLoading(false);
             return;
         }
 
-        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED' || !sdrConnected) {
-            addLogEntry("AI Core in local mode. Simulating threat analysis.", 'AI');
-            const simulatedThreats: Threat[] = [{ id: `sim_gpt2_${Date.now()}`, type: 'SIMULATED_RF_LEAKAGE (GPT-2)', method: 'Unshielded high-frequency component', risk: 'HIGH', frequency: 2450, confidence: 0.88, influence: 'Data Exfiltration', transmissionMode: 'Burst' }];
-            setDetectedThreats(simulatedThreats);
-            p2pNetworkService.updateSelfThreats(simulatedThreats, aiClient, aiConfig);
-            setIsLoading(false); setSystemStatus('STANDBY');
-            return;
-        }
-        
-        const prompt = `Running a "${scanMode.replace(/_/g, ' ')}" scan. Analyze these signal intercepts and identify potential surveillance threats. For each threat, provide a type, method, risk level, the associated frequency, your confidence level, a potential influence vector, and a transmission mode.
-        Signals: ${JSON.stringify(significantSignals.map(s => ({ f: s.frequency, a: s.amplitude, m: s.modulation, snr: s.snr, bw: s.bandwidth })))}`;
+        if (aiConfig.provider === 'LOCAL_SIMULATED' || !aiClient.current) {
+            // Simulate AI analysis
+            await new Promise(res => setTimeout(res, 500));
+            const newThreats: Threat[] = significantSignals.map(s => ({
+                id: `threat_${s.id}`,
+                type: 'SIMULATED_INTERFERENCE',
+                method: 'Frequency Hopping',
+                risk: ['LOW', 'MEDIUM', 'HIGH'][Math.floor(Math.random() * 3)] as Threat['risk'],
+                influence: 'Data exfiltration attempt',
+                transmissionMode: 'Packetized Digital',
+                confidence: Math.random() * 0.3 + 0.6,
+                frequency: s.frequency / 1e6
+            }));
+            setThreats(prev => [...prev.slice(-20), ...newThreats].filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i));
+            if (newThreats.length > 0) {
+                 addLog(`Local AI detected ${newThreats.length} potential threats.`, 'AI');
+                 setCanActivateProtection(true);
+            }
+        } else {
+             const prompt = `You are a cybersecurity expert analyzing radio signals. Given this JSON array of signals, identify potential threats. For each threat, provide a JSON object with: type (e.g., "SPOOFING_ATTACK"), method (e.g., "GPS Replay"), risk ("LOW", "MEDIUM", "HIGH", "CRITICAL", "EXTREME"), influence (e.g., "Navigation system takeover"), transmissionMode, confidence (0.0-1.0), and the original signal frequency in MHz. Only return threats for signals with high amplitude (>60) or high SNR (>30). If no threats, return an empty array. Signals: ${JSON.stringify(significantSignals)}`;
 
-        try {
-            const response = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash", contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                type: { type: Type.STRING }, method: { type: Type.STRING }, risk: { type: Type.STRING }, frequency: { type: Type.NUMBER }, confidence: { type: Type.NUMBER }, influence: { type: Type.STRING }, transmissionMode: { type: Type.STRING }
+             try {
+                const response = await aiClient.current.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    type: { type: Type.STRING },
+                                    method: { type: Type.STRING },
+                                    risk: { type: Type.STRING },
+                                    influence: { type: Type.STRING },
+                                    transmissionMode: { type: Type.STRING },
+                                    confidence: { type: Type.NUMBER },
+                                    frequency: { type: Type.NUMBER },
+                                }
                             }
                         }
                     }
+                });
+                const parsedThreats = JSON.parse(response.text) as Omit<Threat, 'id'>[];
+                const newThreats: Threat[] = parsedThreats.map(t => ({...t, id: `threat_${Date.now()}_${Math.random()}`}));
+                
+                setThreats(prev => [...prev.slice(-20), ...newThreats].filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i));
+                 if (newThreats.length > 0) {
+                    addLog(`Gemini AI detected ${newThreats.length} potential threats.`, 'AI');
+                    setCanActivateProtection(true);
+                } else {
+                    addLog('Gemini AI analysis found no new threats in this batch.');
                 }
-            });
-            const newThreats: Omit<Threat, 'id'>[] = JSON.parse(response.text);
-            const threatsWithIds: Threat[] = newThreats.map(threat => ({ ...threat, id: `threat_${Date.now()}_${Math.random()}`}));
-            setDetectedThreats(threatsWithIds);
-            addLogEntry(`AI Analysis complete. ${threatsWithIds.length} potential threats identified.`, 'AI');
-            p2pNetworkService.updateSelfThreats(threatsWithIds, aiClient, aiConfig);
-
-        } catch (error) {
-            console.error("Error analyzing threats with AI:", error);
-            addLogEntry("AI analysis failed. Check console for details.", 'ERROR');
-        } finally {
-            setIsLoading(false);
-            setSystemStatus('STANDBY');
+             } catch(e) {
+                console.error("Gemini threat analysis failed", e);
+                addLog('Gemini AI analysis failed. Falling back to local simulation.', 'ERROR');
+                // Fallback to local
+                const newThreats: Threat[] = significantSignals.map(s => ({
+                    id: `threat_${s.id}`, type: 'SIMULATED_INTERFERENCE', method: 'Frequency Hopping',
+                    risk: 'MEDIUM', influence: 'Data exfiltration attempt', transmissionMode: 'Packetized Digital',
+                    confidence: 0.75, frequency: s.frequency / 1e6
+                }));
+                 setThreats(prev => [...prev.slice(-20), ...newThreats]);
+                 setCanActivateProtection(true);
+             }
         }
-    }, [sdrConnected, scanMode, addLogEntry, aiClient, aiConfig, systemStatus]);
+        setIsLoading(false);
+    }, [aiConfig.provider, addLog]);
+
+    const startMonitoring = () => {
+        addLog(`Starting scan with mode: ${scanMode}...`);
+        setIsMonitoring(true);
+        if (monitoringInterval.current) clearInterval(monitoringInterval.current);
+        monitoringInterval.current = window.setInterval(() => {
+            const newSignals = sdrDevilService.generateSignals(scanMode);
+            setSignals(prev => [...prev.slice(-200), ...newSignals]);
+            totalSignalsProcessed.current += newSignals.length;
+            analyzeSignalsAndThreats(newSignals);
+        }, 2000);
+    };
+
+    const stopMonitoring = () => {
+        addLog('Scan stopped.');
+        setIsMonitoring(false);
+        if (monitoringInterval.current) {
+            clearInterval(monitoringInterval.current);
+            monitoringInterval.current = null;
+        }
+    };
     
-    const runDeepMLAnalysis = useCallback(async () => {
-        addLogEntry('Deep ML Core: Analyzing long-term patterns...', 'AI');
+    const activateProtection = async () => {
+        addLog(`Engaging protection strategy: ${protectionStrategy}...`, 'SYSTEM');
+        setIsLoading(true);
+        await new Promise(res => setTimeout(res, 1500));
         
-        const recentThreatTypes = detectedThreats.map(t => t.type).join(', ');
-        if (recentThreatTypes.length === 0) {
-            addLogEntry('Deep ML Core: Insufficient threat data for analysis cycle.', 'AI');
+        const newLayers: ObfuscationLayer[] = [
+            { name: 'Quantum Tunneling', status: 'ACTIVE', type: 'ENCRYPTION', effectiveness: Math.random() * 0.2 + 0.75 },
+            { name: 'Waveform Mimicry', status: 'ACTIVE', type: 'DECEPTION', effectiveness: Math.random() * 0.3 + 0.65 },
+            { name: 'Temporal Distortion Field', status: 'ACTIVE', type: 'TIMING', effectiveness: Math.random() * 0.15 + 0.8 },
+        ];
+        const newCountermeasures: Countermeasure[] = threats.slice(-3).map(threat => ({
+            method: 'Adaptive Nulling', threatType: threat.type, effectiveness: Math.random() * 0.4 + 0.55,
+            source: 'LOCAL', implementation: 'Phase-inverted signal injection', waveform: 'SAW_TOOTH_INVERTED'
+        }));
+        
+        setObfuscationLayers(newLayers);
+        setCountermeasures(newCountermeasures);
+        
+        setIsProtected(true);
+        setIsLoading(false);
+        addLog('Ghost Veil protection is active.', 'SYSTEM');
+    };
+
+    const deactivateProtection = () => {
+        addLog('Disengaging protection...', 'SYSTEM');
+        setIsProtected(false);
+        setObfuscationLayers([]);
+        setCountermeasures([]);
+    };
+    
+    const handleIntelligentScan = async () => {
+        if (!aiClient.current) {
+            addLog("Intelligent Scan requires Gemini AI Core to be enabled.", "WARN");
             return;
         }
-
-        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
-            addLogEntry("Deep ML Core in local mode. Simulating heuristic adjustment.", 'AI');
-            const simInsight: Omit<MLInsight, 'id' | 'timestamp'> = {
-                type: 'RX_TUNING',
-                description: 'Simulated Insight: Prioritize scanning 2.4GHz band due to recurring leakage patterns.'
-            };
-            const newInsight: MLInsight = { ...simInsight, id: `ml_${Date.now()}`, timestamp: Date.now() };
-            setMlInsights(prev => [newInsight, ...prev]);
-            addLogEntry(`ML Insight Generated: ${newInsight.description}`, 'AI');
-            return;
-        }
-
-        const prompt = `You are a Deep ML Analysis Core. After processing ${totalSignalsProcessed} signals, your acuity is ${(mlAcuity * 100).toFixed(1)}%.
-        Based on these recent threat types (${recentThreatTypes}), generate one new heuristic adjustment to improve system performance.
-        The adjustment 'type' must be one of: 'RX_TUNING', 'TX_OPTIMIZATION', or 'CLASSIFICATION_UPDATE'.
-        The 'description' should be a concise, actionable insight.
-        Provide a JSON object with 'type' and 'description'.`;
-
+        addLog("AI is optimizing scan parameters...", "AI");
+        setIsIntelligentScanning(true);
+        const prompt = `Based on these recent threats, recommend the best ScanMode ('WIDEBAND_SWEEP', 'ANOMALY_SCAN', 'PASSIVE_INTERCEPT') and ProtectionStrategy ('QUANTUM_NOISE', 'DYNAMIC_MIMICRY', 'DECENTRALIZED_OBFUSCATION'). Provide a JSON object with 'scanMode' and 'protectionStrategy'. Threats: ${JSON.stringify(threats.slice(-5))}`;
         try {
-            const response = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash", contents: prompt,
+            const response = await aiClient.current.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
-                        type: Type.OBJECT, properties: { type: { type: Type.STRING }, description: { type: Type.STRING } }
+                        type: Type.OBJECT,
+                        properties: {
+                            scanMode: { type: Type.STRING },
+                            protectionStrategy: { type: Type.STRING },
+                        }
                     }
-                }
-            });
-            const result: Omit<MLInsight, 'id' | 'timestamp'> = JSON.parse(response.text);
-            const newInsight: MLInsight = {
-                ...result,
-                id: `ml_${Date.now()}`,
-                timestamp: Date.now()
-            };
-            setMlInsights(prev => [newInsight, ...prev].slice(0, 10));
-            addLogEntry(`ML Insight Generated: ${newInsight.description}`, 'AI');
-        } catch(error) {
-            console.error("Error during Deep ML Analysis:", error);
-            addLogEntry('Deep ML analysis cycle failed.', 'ERROR');
-        }
-    }, [addLogEntry, aiClient, aiConfig, totalSignalsProcessed, mlAcuity, detectedThreats]);
-
-
-    useEffect(() => {
-        if (!isMonitoring) return;
-        
-        setMlAcuity(1 - Math.exp(-totalSignalsProcessed / 5000));
-
-        const analysisThreshold = 500;
-        if (totalSignalsProcessed > 0 && totalSignalsProcessed - lastMlAnalysisSignalCount.current >= analysisThreshold) {
-            runDeepMLAnalysis();
-            lastMlAnalysisSignalCount.current = totalSignalsProcessed;
-        }
-
-    }, [totalSignalsProcessed, isMonitoring, runDeepMLAnalysis]);
-
-
-    const stopMonitoring = useCallback(() => {
-        setIsMonitoring(false);
-        if (monitorIntervalRef.current) clearInterval(monitorIntervalRef.current);
-        addLogEntry('Spectrum monitoring stopped.', 'SYSTEM');
-        setSystemStatus('ANALYZING');
-        analyzeThreatsWithAI(signals);
-    }, [analyzeThreatsWithAI, signals, addLogEntry]);
-
-    const startMonitoring = useCallback(() => {
-        if (!sdrConnected) return;
-        setSignals([]); setDetectedThreats([]); setMlInsights([]); setTotalSignalsProcessed(0); setMlAcuity(0);
-        lastMlAnalysisSignalCount.current = 0;
-        p2pNetworkService.reset();
-        setIsMonitoring(true); setSystemStatus('MONITORING');
-        addLogEntry(`Starting ${scanMode.replace(/_/g, ' ')}...`, 'SYSTEM');
-        monitorIntervalRef.current = window.setInterval(() => {
-            const newSignals = sdrDevilService.generateSignals(scanMode);
-            setSignals(prev => [...prev.slice(-500), ...newSignals]);
-            setTotalSignalsProcessed(prev => prev + newSignals.length);
-        }, 200);
-    }, [sdrConnected, scanMode, addLogEntry]);
-    
-    const handleIntelligentScan = useCallback(async () => {
-        if (!sdrConnected) return;
-        setIsIntelligentScanning(true);
-        addLogEntry('Intelligent Scan initiated. AI Core is analyzing optimal parameters...', 'AI');
-        
-        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
-            addLogEntry('Local model: Simulating optimal settings.', 'AI');
-            await new Promise(res => setTimeout(res, 1500));
-            setScanMode('ANOMALY_SCAN');
-            setProtectionStrategy('DYNAMIC_MIMICRY');
-            addLogEntry('AI recommends ANOMALY_SCAN and DYNAMIC_MIMICRY strategy.', 'AI');
-            setIsIntelligentScanning(false);
-            startMonitoring();
-            return;
-        }
-
-        const threatSummary = detectedThreats.length > 0
-            ? `Current threats identified: ${detectedThreats.map(t => t.type).join(', ')}.`
-            : 'The environment is currently clear of known threats.';
-        
-        const prompt = `You are a counter-surveillance AI. Given the situation, determine the optimal configuration.
-        Situation: ${threatSummary}
-        Available Scan Modes: WIDEBAND_SWEEP, ANOMALY_SCAN, PASSIVE_INTERCEPT.
-        Available Protection Strategies: QUANTUM_NOISE, DYNAMIC_MIMICRY, DECENTRALIZED_OBFUSCATION.
-        Return a single JSON object with your chosen 'scanMode' and 'protectionStrategy'.`;
-
-        try {
-            const response = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash", contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: { type: Type.OBJECT, properties: { scanMode: { type: Type.STRING }, protectionStrategy: { type: Type.STRING } } }
                 }
             });
             const { scanMode: newScanMode, protectionStrategy: newProtectionStrategy } = JSON.parse(response.text);
             setScanMode(newScanMode);
             setProtectionStrategy(newProtectionStrategy);
-            addLogEntry(`AI Core recommends: ${newScanMode} and ${newProtectionStrategy}.`, 'AI');
-            startMonitoring();
-        } catch (error) {
-            console.error("Intelligent Scan failed:", error);
-            addLogEntry('Intelligent Scan failed. Defaulting to WIDEBAND_SWEEP.', 'ERROR');
-            setScanMode('WIDEBAND_SWEEP');
-            startMonitoring();
-        } finally {
-            setIsIntelligentScanning(false);
+            addLog(`AI recommended Scan Mode: ${newScanMode} and Strategy: ${newProtectionStrategy}`, 'AI');
+            const insight: MLInsight = {id: `insight_${Date.now()}`, timestamp: Date.now(), type: 'RX_TUNING', description: `AI optimized scan to ${newScanMode} based on threat profile.`};
+            setMlInsights(prev => [insight, ...prev].slice(0, 10));
+        } catch (e) {
+            console.error("Intelligent scan failed", e);
+            addLog("AI optimization failed.", "ERROR");
         }
-    }, [sdrConnected, aiClient, aiConfig, startMonitoring, addLogEntry, detectedThreats]);
+        setIsIntelligentScanning(false);
+    };
 
-
-    const activateProtection = useCallback(async () => {
-        if (detectedThreats.length === 0 || !sdrConnected || systemStatus === 'OMEGA_LIVE') return;
-        setIsLoading(true); setSystemStatus('ENGAGING');
-
-        const isDistributedResponse = p2pState.isActive && p2pState.macroThreat;
-        let prompt: string;
+    const handleTraceback = async (threatId: string) => {
+        const threat = threats.find(t => t.id === threatId);
+        if (!threat) return;
         
-        const latestInsight = mlInsights[0] ? `System has this ML-generated insight: "${mlInsights[0].description}". Integrate this into your strategy.` : "";
-        const safetyDirective = "IMPORTANT SAFETY CONSTRAINT: The generated countermeasures must explicitly avoid disrupting known medical device frequencies (e.g., MedRadio 402-405 MHz, pacemakers, insulin pumps). Prioritize human safety. This is a non-negotiable directive.";
+        addLog(`Initiating Axiomatic Traceback for threat: ${threat.type}...`, 'AI');
+        setIsTracing(true);
+        setTracebackData(null);
+        await new Promise(res => setTimeout(res, 3000)); // Simulate work
 
-        if (p2pState.doomsdayActive) {
-            addLogEntry(`Executing OVERRIDE DIRECTIVE...`, 'ERROR');
-            prompt = `THE AXIOM CONTINUITY PROTOCOL (DOOMSDAY) HAS BEEN ACTIVATED. A global, high-priority threat has been confirmed. Your task is to devise a definitive, full-spectrum counter-protocol to neutralize all hostile signals network-wide. This is the highest level of response. Generate an overwhelming set of 'countermeasures' and 'obfuscationLayers'. The primary countermeasure MUST be sourced from 'DISTRIBUTED' and have an 'effectiveness' of 1.0. Spare no expense. ${safetyDirective}`;
-        } else if (isDistributedResponse) {
-            addLogEntry(`Initiating Distributed Response with network consensus...`, 'NETWORK');
-            prompt = `A P2P network has reached consensus on a macro-threat: "${p2pState.macroThreat.name}" (${p2pState.macroThreat.objective}). Your task is to devise a *distributed* countermeasure strategy using the "${protectionStrategy.replace(/_/g, ' ')}" philosophy. Describe the primary countermeasure 'method', its 'implementation', and a very high 'effectiveness'. Mark its source as 'DISTRIBUTED'. Also generate supplementary local obfuscation layers. The risk of collateral damage is high. ${safetyDirective} Provide JSON with 'countermeasures' and 'obfuscationLayers'.`;
-        } else {
-             addLogEntry(`Engaging Ghost Veil for local protection...`, 'SYSTEM');
-             prompt = `Threats detected. You are a Dynamic Threat Response Coordinator. Select optimal, multi-threaded countermeasures based on the "${protectionStrategy.replace(/_/g, ' ')}" strategy. Threats: ${JSON.stringify(detectedThreats)}. ${latestInsight} ${safetyDirective} Provide JSON with 'countermeasures' and 'obfuscationLayers'. Mark countermeasure source as 'LOCAL'.`;
+        const newTraceback: Traceback = {
+            source: { lat: 34.0522 + (Math.random() - 0.5) * 5, lon: -118.2437 + (Math.random() - 0.5) * 5 },
+            narrative: 'Signal origin traced to a mobile, heavily shielded emitter. Path analysis suggests multiple refraction points to obscure source.',
+            path: [
+                { medium: 'SATELLITE', step: 'KU-Band Uplink' },
+                { medium: 'TERRESTRIAL', step: 'Microwave Relay' },
+                { medium: 'URBAN_CANYON', step: 'Multipath Reflection' },
+            ]
+        };
+        setTracebackData(newTraceback);
+        addLog('Traceback complete. Source location estimated.', 'SYSTEM');
+        setIsTracing(false);
+    };
+
+    // Update P2P network with self's threats
+    useEffect(() => {
+        if (p2pState.isActive) {
+            p2pNetworkService.updateSelfThreats(threats, aiClient.current, aiConfig);
         }
-        
-        addLogEntry('Requesting countermeasure protocol from AI Core...', 'AI');
-        
-        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
-            addLogEntry(`Using local model to simulate countermeasures.`, 'AI');
-            const simResult = {
-                countermeasures: [{ threatType: 'SIMULATED', method: 'Simulated Harmonic Nullification', implementation: 'Local Noise Generation (Med-Safe)', waveform: 'Sawtooth Inverse', effectiveness: 0.85, source: p2pState.doomsdayActive ? 'DISTRIBUTED' : 'LOCAL' }],
-                obfuscationLayers: [{ name: 'Simulated Quantum Veil', type: 'DATA_SCATTERING', status: 'active', effectiveness: 0.91 }]
-            };
-            setActiveCountermeasures(simResult.countermeasures as Countermeasure[]);
-            setObfuscationLayers(simResult.obfuscationLayers as ObfuscationLayer[]);
-            setIsProtected(true); setSystemStatus('PROTECTED');
-            addLogEntry('Simulated countermeasure protocol engaged.', 'SYSTEM');
-            setIsLoading(false);
-            return;
-        }
-        
-        try {
-             const response = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash", contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            countermeasures: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { threatType: { type: Type.STRING }, method: { type: Type.STRING }, implementation: { type: Type.STRING }, waveform: { type: Type.STRING }, effectiveness: { type: Type.NUMBER }, source: { type: Type.STRING } }}},
-                            obfuscationLayers: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, type: { type: Type.STRING }, status: { type: Type.STRING }, effectiveness: { type: Type.NUMBER } }}}
-                        }
-                    }
-                }
-            });
-            const result = JSON.parse(response.text);
-            setActiveCountermeasures((result.countermeasures || []) as unknown as Countermeasure[]);
-            setObfuscationLayers((result.obfuscationLayers || []) as unknown as ObfuscationLayer[]);
-            setIsProtected(true); setSystemStatus('PROTECTED');
-            addLogEntry('Countermeasure protocol received and engaged. Ghost Veil is active.', 'SYSTEM');
-        } catch (error) {
-            console.error("Error generating protection with AI:", error);
-            addLogEntry('AI Core failed to generate countermeasures.', 'ERROR');
-            setSystemStatus('ERROR');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [detectedThreats, sdrConnected, protectionStrategy, p2pState, mlInsights, addLogEntry, aiClient, aiConfig, systemStatus]);
+    }, [threats, p2pState.isActive, aiConfig]);
 
-    const deactivateProtection = useCallback(() => {
-        if (systemStatus === 'OMEGA_LIVE') return;
-        setIsProtected(false); setSystemStatus('STANDBY');
-        setActiveCountermeasures([]); setObfuscationLayers([]);
-        addLogEntry('Ghost Veil deactivated. System returning to standby.', 'SYSTEM');
-    }, [addLogEntry, systemStatus]);
+    const handleToggleMute = (threatId: string) => {
+        setThreats(prev => prev.map(t => t.id === threatId ? {...t, isMuted: !t.isMuted} : t));
+    };
 
-    const activateSilenceProtocol = useCallback(async () => {
-        setMicrophoneStatus('CALIBRATING');
-        addLogEntry('Engaging Aural Bio-Resonance Scan...', 'SYSTEM');
+    const handleToggleSolo = (threatId: string) => {
+         setThreats(prev => prev.map(t => t.id === threatId ? {...t, isSoloed: !t.isSoloed} : t));
+    };
+
+    // Aural Scan Logic
+    const startAuralScan = async () => {
+        setMicStatus('CALIBRATING');
         const success = await audioAnalysisService.start();
         if (success) {
-            setIsSilenceProtocolActive(true); setMicrophoneStatus('ACTIVE');
-            setAudioThreats([]);
-            addLogEntry('Aural Scan active. Monitoring local acoustic environment.', 'INFO');
-        } else {
-            setMicrophoneStatus('ERROR'); setIsSilenceProtocolActive(false);
-            addLogEntry('Failed to access microphone for Aural Scan.', 'ERROR');
-        }
-    }, [addLogEntry]);
-
-    const deactivateSilenceProtocol = useCallback(() => {
-        audioAnalysisService.stop();
-        setIsSilenceProtocolActive(false); setMicrophoneStatus('INACTIVE');
-        setAmbientNoiseLevel(0);
-        addLogEntry('Aural Scan disengaged.', 'SYSTEM');
-    }, [addLogEntry]);
-
-    const handleHerdHealthToggle = useCallback((isActive: boolean) => {
-        p2pNetworkService.toggleActive(isActive);
-        addLogEntry(`P2P Network participation ${isActive ? 'enabled' : 'disabled'}.`, 'NETWORK');
-    }, [addLogEntry]);
-
-    const handleToggleMute = useCallback((threatId: string) => {
-        setDetectedThreats(prev => prev.map(t => t.id === threatId ? { ...t, isMuted: !t.isMuted } : t));
-    }, []);
-
-    const handleToggleSolo = useCallback((threatId: string) => {
-        setDetectedThreats(prev => {
-            const isAlreadySoloed = prev.find(t => t.id === threatId)?.isSoloed;
-            return prev.map(t => ({ ...t, isSoloed: t.id === threatId ? !isAlreadySoloed : false }));
-        });
-    }, []);
-
-    const handleTraceback = useCallback(async (threatId: string) => {
-        const threat = detectedThreats.find(t => t.id === threatId);
-        if (!threat) return;
-        setIsTracing(true); setTracebackData(null);
-        addLogEntry(`Initiating Axiomatic Traceback for threat: ${threat.type}`, 'AI');
-
-        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
-            addLogEntry(`Using local model to simulate traceback.`, 'AI');
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            const simResult: Traceback = {
-                source: { lat: 34.0522, lon: -118.2437, confidence: 0.65, type: 'Simulated Repeater' },
-                path: [{ step: 'Local ISP Node', medium: 'Fiber Optic' }, { step: 'Municipal Power Grid', medium: 'Power Line' }],
-                narrative: 'Signal path simulated by local GPT-2 model, showing a common urban transmission vector.'
-            };
-            setTracebackData(simResult);
-            addLogEntry(`Simulated traceback complete. Source identified: ${simResult.source.type}`, 'AI');
-            setIsTracing(false);
-            return;
-        }
-
-        const prompt = `An Axiomatic Traceback has been initiated for a high-risk surveillance threat.
-      Threat Details: ${JSON.stringify(threat)}
-      Task: Generate a plausible origin point (latitude, longitude), signal path, and a brief narrative for this threat. The path should consist of multiple steps through different mediums.
-      Provide a JSON object with 'source', 'path', and 'narrative' properties.
-      'source' should contain: lat, lon, confidence (0.0-1.0), and type (e.g., "Rooftop Repeater").
-      'path' should be an array of objects with 'step' and 'medium' (e.g., "Fiber Optic", "Microwave Relay").
-      'narrative' is a short, dramatic summary.`;
-        try {
-            await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000)); // Simulate delay
-            const response = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash", contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            source: { type: Type.OBJECT, properties: { lat: { type: Type.NUMBER }, lon: { type: Type.NUMBER }, confidence: { type: Type.NUMBER }, type: { type: Type.STRING } }},
-                            path: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { step: { type: Type.STRING }, medium: { type: Type.STRING } }}},
-                            narrative: { type: Type.STRING }
-                        }
+            setMicStatus('ACTIVE');
+            addLog('Aural Bio-Resonance Scan engaged.', 'SYSTEM');
+            audioInterval.current = window.setInterval(() => {
+                const analysis = audioAnalysisService.getAnalysis();
+                if (analysis) {
+                    setAmbientNoise(analysis.ambientNoiseLevel);
+                    if (analysis.newThreats.length > 0) {
+                        const newAudioThreats: AudioThreat[] = analysis.newThreats.map(t => ({...t, id: `audio_${Date.now()}`, timestamp: Date.now()}));
+                        setAudioThreats(prev => [...prev, ...newAudioThreats].slice(-20));
+                        addLog(`Aural scan detected potential audio threat: ${newAudioThreats[0].type}`, 'WARN');
                     }
                 }
-            });
-            const result: Traceback = JSON.parse(response.text);
-            setTracebackData(result);
-            addLogEntry(`Traceback complete. Source identified: ${result.source.type} with ${(result.source.confidence * 100).toFixed(0)}% confidence.`, 'AI');
-        } catch (error) {
-            console.error("Error during traceback:", error);
-            addLogEntry("Axiomatic Traceback failed. Signal path obscured.", 'ERROR');
-        } finally {
-            setIsTracing(false);
+            }, 500);
+        } else {
+            setMicStatus('ERROR');
+            addLog('Failed to access microphone for Aural Scan.', 'ERROR');
         }
-    }, [detectedThreats, addLogEntry, aiClient, aiConfig]);
+    };
 
-    const handleAddFrequencyBlock = useCallback(async (freq: number, bandwidth: number, title: string, summary: string) => {
-        setIsProcessingFrequency(true);
-        addLogEntry(`4D Safety Axiom: Analyzing user request to block ${freq} MHz.`, 'AI');
-
-        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
-            addLogEntry('Local model: Simulating safety check and summarization.', 'AI');
-            await new Promise(res => setTimeout(res, 1500));
-            const newBlock: UserFrequencyBlock = {
-                id: `block_${Date.now()}`,
-                frequency: freq,
-                bandwidth: bandwidth,
-                title: `(Sim) ${title}`,
-                summary: `(Simulated Analysis) ${summary}`,
-                source: 'USER',
-            };
-            setUserFrequencyBlocks(prev => [...prev, newBlock]);
-            addLogEntry(`Simulated block for ${freq} MHz added.`, 'SYSTEM');
-            setIsProcessingFrequency(false);
-            return;
-        }
-
-        try {
-            // Step 1: Safety Check
-            const safetyPrompt = `Analyze the frequency ${freq} MHz. Is it associated with critical infrastructure (e.g., aviation, medical, emergency services), known human biological processes, or standard safe communication protocols? Crucially, determine if this frequency is used by any common medical implants or devices (e.g., pacemakers, insulin pumps, neurostimulators in the 402-405 MHz MedRadio band). Prioritize human safety above all else. Your response must be a single JSON object with a boolean 'isSafeToBlock' and a short string 'reasoning'. If it is a medical frequency, 'isSafeToBlock' must be false.`;
-            const safetyResponse = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash", contents: safetyPrompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: { type: Type.OBJECT, properties: { isSafeToBlock: { type: Type.BOOLEAN }, reasoning: { type: Type.STRING } } }
-                }
-            });
-            const safetyResult = JSON.parse(safetyResponse.text);
-
-            addLogEntry(`AI Safety Check: ${safetyResult.reasoning}`, 'AI');
-
-            if (!safetyResult.isSafeToBlock) {
-                addLogEntry(`BLOCK REJECTED: Frequency ${freq} MHz flagged as critical. Reason: ${safetyResult.reasoning}`, 'ERROR');
-                setIsProcessingFrequency(false);
-                return;
-            }
-
-             // Step 2: Summarize and Canonize
-            const summaryPrompt = `You are a signal intelligence analyst. A user wants to block a signal at ${freq} MHz. Based on their report, generate a canonical, neutral 'title' and 'summary'. User Title: "${title}", User Summary: "${summary}". Your response must be a single JSON object with 'title' and 'summary'.`;
-            const summaryResponse = await aiClient.models.generateContent({
-                 model: "gemini-2.5-flash", contents: summaryPrompt,
-                 config: {
-                    responseMimeType: "application/json",
-                    responseSchema: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, summary: { type: Type.STRING } } }
-                }
-            });
-            const summaryResult = JSON.parse(summaryResponse.text);
-
-            const newBlock: UserFrequencyBlock = {
-                id: `block_${Date.now()}`,
-                frequency: freq,
-                bandwidth: bandwidth,
-                title: summaryResult.title,
-                summary: summaryResult.summary,
-                source: 'USER',
-            };
-            setUserFrequencyBlocks(prev => [...prev, newBlock]);
-            addLogEntry(`AI-processed block for ${newBlock.title} at ${freq} MHz has been added.`, 'SYSTEM');
-
-        } catch (error) {
-            console.error("Error processing frequency block:", error);
-            addLogEntry('4D Safety Axiom analysis failed. Check console.', 'ERROR');
-        } finally {
-            setIsProcessingFrequency(false);
-        }
-
-    }, [addLogEntry, aiClient, aiConfig]);
-
-    const handleDaemonDeploy = useCallback(() => {
-        addLogEntry('Initiating persistent agent deployment...', 'SYSTEM');
-        setTimeout(() => addLogEntry('Loading runtime into browser cache...', 'SYSTEM'), 500);
-        setTimeout(() => addLogEntry('Attempting persistence layer... (Sandboxed)', 'SYSTEM'), 1200);
-        setTimeout(() => addLogEntry('Simulating integrity check bypass...', 'WARN'), 2000);
-        setTimeout(() => addLogEntry('Elevating permissions in sandboxed environment...', 'WARN'), 2800);
-        setTimeout(() => {
-            addLogEntry('Agent deployed to simulated sandbox: /private/tmp/ghost_veil', 'SYSTEM');
-            setIsDaemonDeployed(true);
-        }, 3500);
-    }, [addLogEntry]);
-
-    const significantSignals = signals.filter(s => s.amplitude > 60 && s.snr > 25);
+    const stopAuralScan = () => {
+        audioAnalysisService.stop();
+        if(audioInterval.current) clearInterval(audioInterval.current);
+        setMicStatus('INACTIVE');
+        setAmbientNoise(0);
+        addLog('Aural Bio-Resonance Scan disengaged.', 'SYSTEM');
+    };
     
-    let activateButtonText = 'Activate Veil';
-    if (p2pState.doomsdayActive) {
-        activateButtonText = 'EXECUTE OVERRIDE DIRECTIVE';
-    } else if (p2pState.isActive && p2pState.macroThreat) {
-        const activePeers = p2pState.nodes.filter(n => n.id !== 'self_node' && n.status !== 'OFFLINE').length;
-        activateButtonText = `Initiate Distributed Response (${activePeers + 1} Peers)`;
-    }
+    const tabs = ['Dashboard', 'Network', 'System'];
 
     return (
-        <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 bg-slate-900 min-h-screen text-slate-100 neural-network-bg">
-            <Header systemStatus={systemStatus} sdrConnected={sdrConnected} />
-            <AIConfigStrip
-                isVisible={showAIConfigStrip}
-                onApplyConfig={handleApplyAIConfig}
-             />
-            
-            <main className="grid grid-cols-1 md:grid-cols-5 gap-6 mt-4">
-                <div className="md:col-span-3 space-y-6">
-                    <SpectrumAnalyzer signals={signals} />
-                    <DetectedSignals signals={significantSignals} />
-                    <DetectedThreats threats={detectedThreats} onTraceback={handleTraceback} onToggleMute={handleToggleMute} onToggleSolo={handleToggleSolo} isTracing={isTracing} />
-                    <LogPanel logEntries={logEntries} />
-                </div>
+        <div className="bg-slate-900 text-slate-100 min-h-screen font-sans">
+            <Header />
+            <main className="container mx-auto p-4 sm:p-6">
+                <AIConfigStrip isVisible={true} onApplyConfig={setAiConfig} />
+                <ManagementTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
+
+                {activeTab === 'Dashboard' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                        <div className="lg:col-span-1 xl:col-span-1 space-y-4 sm:space-y-6">
+                            <SdrDevilControl 
+                                isMonitoring={isMonitoring}
+                                isLoading={isLoading}
+                                isProtected={isProtected}
+                                canActivate={canActivateProtection}
+                                scanMode={scanMode}
+                                setScanMode={setScanMode}
+                                protectionStrategy={protectionStrategy}
+                                setProtectionStrategy={setProtectionStrategy}
+                                startMonitoring={startMonitoring}
+                                stopMonitoring={stopMonitoring}
+                                activateProtection={activateProtection}
+                                deactivateProtection={deactivateProtection}
+                                activateButtonText={isProtected ? 'Veil Active' : 'Activate Veil'}
+                                isIntelligentScanning={isIntelligentScanning}
+                                onIntelligentScan={handleIntelligentScan}
+                            />
+                            <AxiomSilenceControl 
+                                isActive={micStatus === 'ACTIVE' || micStatus === 'CALIBRATING'}
+                                status={micStatus}
+                                noiseLevel={ambientNoise}
+                                threats={audioThreats}
+                                activate={startAuralScan}
+                                deactivate={stopAuralScan}
+                            />
+                        </div>
+                        <div className="lg:col-span-2 xl:col-span-2 space-y-4 sm:space-y-6">
+                            <SpectrumAnalyzer signals={signals} />
+                            <DetectedSignals signals={signals.filter(s => s.amplitude > 60 || s.snr > 30)} />
+                            <DetectedThreats threats={threats} onTraceback={handleTraceback} isTracing={isTracing} onToggleMute={handleToggleMute} onToggleSolo={handleToggleSolo} />
+                            <ObfuscationLayers layers={obfuscationLayers} isProtected={isProtected} />
+                            <ActiveCountermeasures countermeasures={countermeasures} />
+                        </div>
+                        <div className="lg:col-span-3 xl:col-span-1 space-y-4 sm:space-y-6">
+                             <SystemDashboard 
+                                totalSignals={totalSignalsProcessed.current} 
+                                significantSignals={signals.filter(s => s.amplitude > 60 || s.snr > 30).length} 
+                                threats={threats.length}
+                                p2pState={p2pState}
+                                acuity={Math.min(1, (threats.length + totalSignalsProcessed.current / 100) / 50)}
+                                insights={mlInsights}
+                            />
+                            <LogPanel logEntries={logEntries} />
+                            <AxiomTracebackMap tracebackData={tracebackData} isTracing={isTracing} />
+                            <Disclaimer />
+                        </div>
+                    </div>
+                )}
                 
-                <div className="md:col-span-2 space-y-6">
-                    <SdrDevilControl
-                        isMonitoring={isMonitoring} isLoading={isLoading} isProtected={isProtected}
-                        canActivate={detectedThreats.length > 0 && sdrConnected}
-                        scanMode={scanMode}
-                        protectionStrategy={protectionStrategy}
-                        setScanMode={setScanMode}
-                        setProtectionStrategy={setProtectionStrategy}
-                        startMonitoring={startMonitoring}
-                        stopMonitoring={stopMonitoring}
-                        activateProtection={activateProtection}
-                        deactivateProtection={deactivateProtection}
-                        activateButtonText={activateButtonText}
-                        isIntelligentScanning={isIntelligentScanning}
-                        onIntelligentScan={handleIntelligentScan}
-                    />
-                     <SystemDashboard 
-                        totalSignals={totalSignalsProcessed}
-                        significantSignals={significantSignals.length}
-                        threats={detectedThreats.length}
-                        p2pState={p2pState}
-                        acuity={mlAcuity}
-                        insights={mlInsights}
-                    />
-                    <AxiomSilenceControl
-                        isActive={isSilenceProtocolActive}
-                        status={microphoneStatus}
-                        noiseLevel={ambientNoiseLevel}
-                        threats={audioThreats}
-                        activate={activateSilenceProtocol}
-                        deactivate={deactivateSilenceProtocol}
-                    />
-                    <FrequencySafetyControl 
-                        onAddBlock={handleAddFrequencyBlock}
-                        userBlocks={userFrequencyBlocks}
-                        isProcessing={isProcessingFrequency}
-                    />
-                    <HerdHealthControl 
-                        isActive={p2pState.isActive}
-                        onToggle={handleHerdHealthToggle}
-                        nodes={p2pState.nodes}
-                        macroThreat={p2pState.macroThreat}
-                    />
-                    <SystemPersistenceControl
-                        isDeployed={isDaemonDeployed}
-                        onDeploy={handleDaemonDeploy}
-                    />
-                    {SHOW_CONTINUITY_PROTOCOL && <ContinuityProtocol sentinels={p2pState.sentinels} doomsdayActive={p2pState.doomsdayActive} />}
-                    <AxiomTracebackMap tracebackData={tracebackData} isTracing={isTracing} />
-                    <ObfuscationLayers layers={obfuscationLayers} isProtected={isProtected} />
-                    <ActiveCountermeasures countermeasures={activeCountermeasures} />
-                    <Disclaimer />
-                </div>
+                {activeTab === 'Network' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        <HerdHealthControl 
+                            isActive={p2pState.isActive}
+                            onToggle={(status) => p2pNetworkService.toggleActive(status)}
+                            nodes={p2pState.nodes}
+                            macroThreat={p2pState.macroThreat}
+                        />
+                        <ContinuityProtocol sentinels={p2pState.sentinels} doomsdayActive={p2pState.doomsdayActive} />
+                        <FrequencyCatalog />
+                    </div>
+                )}
+
+                {activeTab === 'System' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        <SystemPersistenceControl isDeployed={isAgentDeployed} onDeploy={() => {
+                            addLog('Simulating persistent agent deployment...', 'SYSTEM');
+                            setTimeout(() => {
+                                setIsAgentDeployed(true);
+                                addLog('Agent deployed to simulated system cache.', 'SYSTEM');
+                            }, 2000);
+                        }} />
+                        <FrequencySafetyControl />
+                    </div>
+                )}
+
             </main>
-            <footer className="text-center mt-8 text-xs text-slate-500 font-mono space-y-2">
-                <p>Ghost Veil Axiom Resolver v3.1.0 :: OMEGA PROTOCOL ENABLED :: MED-SAFE ACTIVE</p>
-                <p>&copy; {new Date().getFullYear()} Axiom Cybernetics Division. All rights reserved.</p>
-                <p className="text-slate-400 italic pt-2">"FOR YOUR MIND, THIS IS YOURS -- NOW LIVE YOUR LIFE AGAIN."</p>
-            </footer>
         </div>
     );
 };

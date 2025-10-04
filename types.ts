@@ -1,3 +1,13 @@
+
+export type LogType = 'SYSTEM' | 'AI' | 'NETWORK' | 'WARN' | 'ERROR';
+
+export interface LogEntry {
+    id: string;
+    timestamp: number;
+    type: LogType;
+    message: string;
+}
+
 export interface Signal {
     id: string;
     timestamp: number;
@@ -9,81 +19,46 @@ export interface Signal {
     bandwidth: number;
 }
 
-export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'EXTREME';
+export type ThreatRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'EXTREME' | 'UNKNOWN';
 
 export interface Threat {
     id: string;
     type: string;
     method: string;
-    risk: RiskLevel;
-    frequency: number;
-    confidence: number;
+    risk: ThreatRisk;
     influence: string;
     transmissionMode: string;
+    confidence: number;
+    frequency: number;
     isMuted?: boolean;
     isSoloed?: boolean;
 }
 
-export interface Countermeasure {
-    threatType: string;
-    method: string;
-    implementation: string;
-    waveform: string;
-    effectiveness: number;
-    source: 'LOCAL' | 'DISTRIBUTED'; // Differentiate between local and network-wide actions
-}
-
 export interface ObfuscationLayer {
     name: string;
+    status: 'ACTIVE' | 'INACTIVE';
     type: string;
-    status: 'active' | 'inactive';
     effectiveness: number;
 }
 
-export type SystemStatus = 'CONNECTING' | 'STANDBY' | 'MONITORING' | 'ANALYZING' | 'ENGAGING' | 'PROTECTED' | 'ERROR' | 'OMEGA_LIVE';
+export interface Countermeasure {
+    method: string;
+    threatType: string;
+    effectiveness: number;
+    source: 'LOCAL' | 'DISTRIBUTED';
+    implementation: string;
+    waveform: string;
+}
 
 export type ScanMode = 'WIDEBAND_SWEEP' | 'ANOMALY_SCAN' | 'PASSIVE_INTERCEPT';
 
 export type ProtectionStrategy = 'QUANTUM_NOISE' | 'DYNAMIC_MIMICRY' | 'DECENTRALIZED_OBFUSCATION';
-
-export interface AudioThreat {
-    id: string;
-    timestamp: number;
-    type: string;
-    description: string;
-    confidence: number;
-}
-
-export type MicrophoneStatus = 'INACTIVE' | 'CALIBRATING' | 'ACTIVE' | 'ERROR';
 
 export interface P2PNode {
     id: string;
     alias: string;
     status: 'NOMINAL' | 'THREAT_DETECTED' | 'OFFLINE';
     threats: Threat[];
-}
-
-export type LogType = 'INFO' | 'SYSTEM' | 'AI' | 'NETWORK' | 'WARN' | 'ERROR';
-
-export interface LogEntry {
-    id: string;
-    timestamp: number;
-    message: string;
-    type: LogType;
-}
-
-export interface Traceback {
-    source: {
-        lat: number;
-        lon: number;
-        confidence: number;
-        type: string;
-    };
-    path: {
-        step: string;
-        medium: string;
-    }[];
-    narrative: string;
 }
 
 export interface MacroThreat {
@@ -93,26 +68,10 @@ export interface MacroThreat {
     confidence: number;
 }
 
-export type AIProvider = 'LOCAL_SIMULATED' | 'GEMINI' | 'COHERE' | 'GPT';
-
-export interface AIConfig {
-    provider: AIProvider;
-    apiKey: string;
-}
-
-export interface MLInsight {
-    id: string;
-    timestamp: number;
-    type: 'RX_TUNING' | 'TX_OPTIMIZATION' | 'CLASSIFICATION_UPDATE';
-    description: string;
-}
-
-export type SentinelStatus = 'OFFLINE' | 'AWAITING_CHECK' | 'VALIDATING' | 'SECURE';
-
 export interface Sentinel {
     id: string;
     location: string;
-    status: SentinelStatus;
+    status: 'OFFLINE' | 'AWAITING_CHECK' | 'VALIDATING' | 'SECURE';
     validationCount: number;
     maxValidations: number;
     machineId: string;
@@ -130,18 +89,46 @@ export interface P2PState {
     doomsdayActive: boolean;
 }
 
+export interface AudioThreat {
+    id: string;
+    timestamp: number;
+    type: 'SPEECH_PATTERN' | 'ACOUSTIC_LEAKAGE' | 'NEURAL_RESONANCE';
+    description: string;
+    confidence: number;
+}
+
+export type MicrophoneStatus = 'INACTIVE' | 'CALIBRATING' | 'ACTIVE' | 'ERROR';
+
+export interface Traceback {
+    source: {
+        lat: number;
+        lon: number;
+    };
+    narrative: string;
+    path: { step: string; medium: string }[];
+}
+
+export interface AIConfig {
+    provider: 'LOCAL_SIMULATED' | 'GEMINI';
+    apiKey: string;
+}
+
+export interface MLInsight {
+    id: string;
+    timestamp: number;
+    type: 'RX_TUNING' | 'TX_OPTIMIZATION' | 'CLASSIFICATION_UPDATE';
+    description: string;
+}
+
 export interface OmegaProtocolState {
     isAwaitingFinalApproval: boolean;
     isLive: boolean;
     requestId: string | null;
 }
 
-export interface UserFrequencyBlock {
-    id: string;
-    frequency: number; // in MHz
-    bandwidth: number; // in kHz
-    title: string;
-    summary: string;
-    source: 'USER' | 'CROWDSOURCED';
-    geographicalArea?: string; // e.g., 'US-WEST-1'
+export interface FrequencyBand {
+    name: string;
+    range: string;
+    usage: string;
+    isProtected: boolean;
 }
