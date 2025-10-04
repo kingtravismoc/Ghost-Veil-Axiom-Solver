@@ -1,0 +1,7 @@
+{
+  "name": "Ghost Veil Axiom Resolver",
+  "description": "An advanced, AI-powered conceptual interface for visualizing real-time signal analysis and multi-spectrum counter-surveillance techniques. This application is for educational and illustrative purposes only.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
