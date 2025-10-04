@@ -1,6 +1,19 @@
 import React from 'react';
-import { UsersIcon } from './icons';
-import type { UserProfile, Friend } from '../types';
+import { UsersIcon, BrainCircuitIcon } from './icons';
+import type { UserProfile, Friend, UserContribution } from '../types';
+
+const ContributionItem: React.FC<{ contribution: UserContribution}> = ({ contribution }) => (
+    <div className="bg-slate-800/50 p-2 rounded-md flex justify-between items-center text-sm">
+        <div>
+            <p className="font-semibold text-slate-200">{contribution.type.replace(/_/g, ' ')}</p>
+            <p className="text-xs text-slate-400 italic">"{contribution.description}"</p>
+        </div>
+        <div className="text-right">
+            <p className="font-mono font-bold text-purple-300">+{contribution.agtAwarded} AGT</p>
+            <p className="text-xs text-slate-500">{new Date(contribution.timestamp).toLocaleDateString()}</p>
+        </div>
+    </div>
+);
 
 interface UserManagementDashboardProps {
     currentUser: UserProfile;
@@ -29,6 +42,18 @@ const UserManagementDashboard: React.FC<UserManagementDashboardProps> = ({ curre
                     </div>
                 </div>
             </div>
+            
+            <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
+                <h2 className="text-2xl font-semibold flex items-center gap-2">
+                   <BrainCircuitIcon className="w-6 h-6 text-purple-400" />
+                   Contributions & Rewards
+                </h2>
+                <div className="mt-4 space-y-2 max-h-64 overflow-y-auto pr-2">
+                    {currentUser.contributions.length === 0 && <p className="text-slate-400 text-center py-4">No contributions recorded yet. Classify signals or review extensions to earn AGT.</p>}
+                    {currentUser.contributions.slice().reverse().map(c => <ContributionItem key={c.id} contribution={c} />)}
+                </div>
+            </div>
+
 
              <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
                 <h2 className="text-2xl font-semibold flex items-center gap-2">

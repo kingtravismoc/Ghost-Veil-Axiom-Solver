@@ -1,5 +1,5 @@
 import React from 'react';
-import { GhostIcon, UserPlusIcon, GlobeIcon, WalletIcon } from './icons';
+import { GhostIcon, EyeIcon, WalletIcon } from './icons';
 import type { SystemStatus, UserProfile, Network, Wallet } from '../types';
 import NetworkDropdown from './NetworkDropdown';
 import MasterControl from './MasterControl';
@@ -20,6 +20,7 @@ interface HeaderProps {
     wallet: Wallet | null;
     onShowWallet: () => void;
     isCommerceEnabled: boolean;
+    onShowNetworkDetails: () => void;
 }
 
 const TabButton: React.FC<{ isActive: boolean; onClick: () => void; children: React.ReactNode }> = ({ isActive, onClick, children }) => (
@@ -33,9 +34,13 @@ const TabButton: React.FC<{ isActive: boolean; onClick: () => void; children: Re
     </button>
 );
 
+const mainTabs = ['Dashboard', 'Spectrum', 'Neural', 'Devices', 'Functions', 'System'];
 
 const Header: React.FC<HeaderProps> = (props) => {
-    const { status, activeTab, onTabChange, onShowAddFriend, onShowShare, onShowGovSignup, networks, selectedNetwork, onSelectNetwork, onAddNetwork, onOpenTriggers, wallet, onShowWallet, isCommerceEnabled } = props;
+    const { 
+        status, activeTab, onTabChange, networks, selectedNetwork, onSelectNetwork, 
+        onAddNetwork, onOpenTriggers, wallet, onShowWallet, isCommerceEnabled, onShowNetworkDetails 
+    } = props;
 
     return (
         <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 p-3 sticky top-0 z-40">
@@ -45,9 +50,12 @@ const Header: React.FC<HeaderProps> = (props) => {
                     <h1 className="text-xl font-bold hidden sm:block">Ghost Veil Protocol</h1>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-lg">
-                   <TabButton isActive={activeTab === 'Operations'} onClick={() => onTabChange('Operations')}>Operations</TabButton>
-                   <TabButton isActive={activeTab === 'Management'} onClick={() => onTabChange('Management')}>Management</TabButton>
+                <div className="flex-grow flex items-center justify-center">
+                     <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-lg">
+                        {mainTabs.map(tab => (
+                            <TabButton key={tab} isActive={activeTab === tab} onClick={() => onTabChange(tab)}>{tab}</TabButton>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -58,6 +66,11 @@ const Header: React.FC<HeaderProps> = (props) => {
                         </button>
                     )}
                      <NetworkDropdown networks={networks} selectedNetwork={selectedNetwork} onSelect={onSelectNetwork} onAddNetwork={onAddNetwork} />
+                     {selectedNetwork && (
+                         <button onClick={onShowNetworkDetails} title="View Network Details" className="p-2 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-300 hover:text-white transition-colors">
+                             <EyeIcon className="w-5 h-5"/>
+                         </button>
+                     )}
                      <MasterControl status={status} setStatus={() => {}} onOpenTriggers={onOpenTriggers} />
                 </div>
             </div>

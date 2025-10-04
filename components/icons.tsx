@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement> & { children?: React.ReactNode };
 
@@ -216,6 +215,21 @@ export const PlusIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
+export const QuestionMarkCircleIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+        {props.children}
+    </svg>
+);
+
+export const WaveformIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h.007v.007H3.75V12zm.75 3h.007v.007H4.5v-.007zm.75 3h.007v.007H5.25v-.007zm.75-6h.007v.007H6v-.007zm.75 6h.007v.007H6.75v-.007zm.75-3h.007v.007H7.5v-.007zm.75 3h.007v.007H8.25v-.007zm.75-6h.007v.007H9v-.007zm.75 6h.007v.007H9.75v-.007zm.75-3h.007v.007H10.5v-.007zm.75 3h.007v.007H11.25v-.007zM12 12h.007v.007H12V12zm.75 3h.007v.007H12.75v-.007zm.75-3h.007v.007H13.5v-.007zm.75-3h.007v.007H14.25v-.007zm.75 6h.007v.007H15v-.007zm.75-3h.007v.007H15.75v-.007zm.75 3h.007v.007H16.5v-.007zm.75-6h.007v.007H17.25v-.007zm.75 3h.007v.007H18v-.007zm.75 3h.007v.007H18.75v-.007zm.75-6h.007v.007H19.5v-.007zm.75 3h.007v.007H20.25v-.007z" />
+        {props.children}
+    </svg>
+);
+
+
 // V2 Icons
 export const PowerIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -280,3 +294,18 @@ export const ArrowUpTrayIcon: React.FC<IconProps> = (props) => (
         {props.children}
     </svg>
 );
+
+
+export const InfoTooltip: React.FC<{ text: string }> = ({ text }) => {
+    const [visible, setVisible] = useState(false);
+    return (
+        <div className="relative inline-block" onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}>
+            <QuestionMarkCircleIcon className="w-4 h-4 text-slate-500 cursor-help" />
+            {visible && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-slate-800 text-slate-200 text-xs rounded-lg shadow-lg z-20 border border-slate-600">
+                    {text}
+                </div>
+            )}
+        </div>
+    );
+};

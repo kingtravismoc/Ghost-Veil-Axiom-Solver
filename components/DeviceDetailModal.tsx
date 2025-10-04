@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { ImplantedDevice, ImplantedDeviceStatus } from '../types';
+import type { ImplantedDevice, ImplantedDeviceStatus, FourDSafetyValidationResult } from '../types';
 import { ChipIcon, BodyIcon, TerminalIcon, ShieldCheckIcon, ZapIcon, EyeIcon, EyeSlashIcon, BrainCircuitIcon } from './icons';
 
 interface DeviceDetailModalProps {
@@ -8,7 +8,7 @@ interface DeviceDetailModalProps {
     onUpdateStatus: (deviceId: string, status: ImplantedDeviceStatus) => void;
     onHideDevice: (device: ImplantedDevice) => void;
     isHiding: boolean;
-    safetyCheckResult: { isSafe: boolean; recommendation: string } | null;
+    safetyCheckResult: FourDSafetyValidationResult | null;
 }
 
 const tabs = ['Overview', 'Hardware & Comms', 'Console'];

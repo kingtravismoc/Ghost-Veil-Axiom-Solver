@@ -1,3 +1,5 @@
+import { UserPlusIcon } from "./icons";
+
 export type Modulation = 'AM' | 'FM' | 'PULSE' | 'FSK' | 'QAM' | 'MAGNETIC_PULSE' | 'BIO_OPTICAL' | 'SONAR_PING' | 'UV_BEAM' | 'PLASMA_WAVE';
 
 export interface Signal {
@@ -9,6 +11,10 @@ export interface Signal {
   snr: number; // Signal-to-Noise Ratio
   bandwidth: number;
   id: string;
+  classification?: string;
+  tags?: string[];
+  summary?: string;
+  isClassified?: boolean;
 }
 
 export type ThreatRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'EXTREME';
@@ -42,7 +48,7 @@ export interface Countermeasure {
     waveform: string;
 }
 
-export type LogType = 'SYSTEM' | 'AI' | 'NETWORK' | 'WARN' | 'ERROR' | 'INFO';
+export type LogType = 'SYSTEM' | 'AI' | 'NETWORK' | 'WARN' | 'ERROR' | 'INFO' | 'BLOCKCHAIN';
 
 export interface LogEntry {
   id: string;
@@ -159,10 +165,20 @@ export interface ImplantedDevice {
 
 export type UserRole = 'OPERATOR' | 'ADMIN' | 'SUPER_ADMIN' | 'GOV_AGENT' | 'DEVELOPER';
 
+export type ContributionType = 'SIGNAL_CLASSIFICATION' | 'EXTENSION_REVIEW' | 'FEEDBACK' | 'VOTE';
+export interface UserContribution {
+    id: string;
+    timestamp: number;
+    type: ContributionType;
+    description: string;
+    agtAwarded: number;
+}
+
 export interface UserProfile {
     operatorId: string;
     role: UserRole;
     privateKey: string; // simulated
+    contributions: UserContribution[];
 }
 
 export interface Friend {
@@ -211,10 +227,11 @@ export interface Trigger {
 export interface Wallet {
     address: string;
     privateKey: string; // Simulated!
-    balance: number;
+    balance: number; // VLT (Veil Tokens)
+    agtBalance: number; // AGT (Axiom Governance Tokens)
 }
 
-export type TransactionType = 'PURCHASE' | 'DEPOSIT' | 'WITHDRAWAL' | 'SALE';
+export type TransactionType = 'PURCHASE' | 'DEPOSIT' | 'WITHDRAWAL' | 'SALE' | 'MINT';
 export interface Transaction {
     id: string;
     timestamp: number;
@@ -243,6 +260,8 @@ export interface Extension {
     requiredEndpoints: string[];
     validationTests: number;
     status: 'PENDING' | 'TESTING' | 'PUBLISHED' | 'REJECTED';
+    isNft: boolean;
+    contractId: string | null;
 }
 
 export interface SDKEndpoint {
@@ -267,4 +286,42 @@ export interface OmegaProtocolState {
     isAwaitingFinalApproval: boolean;
     isLive: boolean;
     requestId: string | null;
+}
+
+export type FourDSafetyValidationResult = { isSafe: boolean; recommendation: string };
+
+// New types for FaaS and Tokenomics
+export type FunctionProtocolStatus = 'AVAILABLE' | 'COMING_SOON' | 'DEPRECATED';
+
+export interface FunctionProtocol {
+    id: string;
+    name: string;
+    description: string;
+    status: FunctionProtocolStatus;
+    costPerCall: number; // in VLT
+    sdkIntegration: string;
+    author: 'GHOST_VEIL' | 'USER';
+    authorId?: string;
+    reviewStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
+
+export interface RewardAllocation {
+    type: ContributionType;
+    agt: number;
+}
+
+export interface TreasuryState {
+    masterWalletAddress: string;
+    totalAgtSupply: number;
+    circulatingAgt: number;
+    proliferationGoal: number; // number of users
+    currentUsers: number;
+    isConversionUnlocked: boolean;
+    rewardAllocations: RewardAllocation[];
+}
+
+export interface CognitiveMetricsState {
+    bioCoherence: number;
+    subconsciousInfluence: number;
+    neuralEntrainment: number;
 }

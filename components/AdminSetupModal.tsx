@@ -43,7 +43,7 @@ const GitHubAuthStep: React.FC<GitHubAuthStepProps> = ({ onVerify, error, isVeri
 };
 
 interface MoonPayStepProps {
-    onSubmit: (keys: { apiKey: string, secretKey: string }) => void;
+    onSubmit: (keys: { apiKey: string, moonPaySecretKey: string }) => void;
 }
 
 const MoonPayStep: React.FC<MoonPayStepProps> = ({ onSubmit }) => {
@@ -52,7 +52,7 @@ const MoonPayStep: React.FC<MoonPayStepProps> = ({ onSubmit }) => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({ apiKey: moonPayApi, secretKey: moonPaySecret });
+        onSubmit({ apiKey: moonPayApi, moonPaySecretKey: moonPaySecret });
     };
 
     return (
@@ -71,7 +71,7 @@ const MoonPayStep: React.FC<MoonPayStepProps> = ({ onSubmit }) => {
 
 interface AdminSetupModalProps {
     onVerifyGithub: (token: string) => Promise<{success: boolean, message: string}>;
-    onSubmit: (keys: { apiKey: string, secretKey: string }) => void;
+    onSubmit: (keys: { apiKey: string, moonPaySecretKey: string }) => void;
 }
 
 const AdminSetupModal: React.FC<AdminSetupModalProps> = ({ onVerifyGithub, onSubmit }) => {

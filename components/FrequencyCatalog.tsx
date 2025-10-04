@@ -1,5 +1,4 @@
 import React from 'react';
-import { ActivityIcon } from './icons'; // Re-using an icon
 import type { FrequencyBand } from '../types';
 
 const knownBands: FrequencyBand[] = [
@@ -12,25 +11,16 @@ const knownBands: FrequencyBand[] = [
 
 const FrequencyCatalog: React.FC = () => {
     return (
-        <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-                <ActivityIcon className="w-6 h-6 text-cyan-400" />
-                Frequency Catalog
-            </h2>
-            <p className="text-xs text-slate-400 mt-2 mb-4">
-                A reference of common and critical frequency bands.
-            </p>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-                {knownBands.map(band => (
-                    <div key={band.name} className={`p-2 rounded-md border ${band.isProtected ? 'bg-green-900/20 border-green-700/50' : 'bg-slate-900/30 border-slate-700'}`}>
-                        <div className="flex justify-between items-center">
-                            <span className={`font-semibold text-sm ${band.isProtected ? 'text-green-300' : 'text-slate-200'}`}>{band.name}</span>
-                            <span className="text-xs text-slate-300 font-mono">{band.range}</span>
-                        </div>
-                        <p className="text-xs text-slate-400">{band.usage}</p>
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+            {knownBands.map(band => (
+                <div key={band.name} className={`p-2 rounded-md border ${band.isProtected ? 'bg-green-900/20 border-green-700/50' : 'bg-slate-900/30 border-slate-700'}`}>
+                    <div className="flex justify-between items-center">
+                        <span className={`font-semibold text-sm ${band.isProtected ? 'text-green-300' : 'text-slate-200'}`}>{band.name}</span>
+                        <span className="text-xs text-slate-300 font-mono">{band.range}</span>
                     </div>
-                ))}
-            </div>
+                    <p className="text-xs text-slate-400">{band.usage}</p>
+                </div>
+            ))}
         </div>
     );
 };

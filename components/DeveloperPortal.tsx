@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { UserProfile, DeveloperProfile, Extension, Transaction } from '../types';
+import type { UserProfile, DeveloperProfile, Extension, Transaction, FunctionProtocol } from '../types';
 import { CodeBracketIcon, ChartBarIcon, BookOpenIcon, ArrowUpTrayIcon, FlaskIcon, StoreIcon } from './icons';
 import SDKDocs from './SDKDocs';
 
@@ -8,7 +8,8 @@ interface DeveloperPortalProps {
     developerProfile: DeveloperProfile | null;
     onUpdateDeveloperProfile: (alias: string) => void;
     extensions: Extension[];
-    onExtensionSubmit: (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'>) => void;
+    onExtensionSubmit: (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'>) => void;
+    onFunctionSubmit: (func: Omit<FunctionProtocol, 'id'|'author'|'authorId'|'reviewStatus'|'status'>) => void;
 }
 
 const MyExtensionsView: React.FC<{ extensions: Extension[], authorId: string }> = ({ extensions, authorId }) => {
@@ -80,10 +81,12 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
             isInstalled: false,
             requiredEndpoints: [], // This would be parsed from code in a real scenario
         });
+        setName(''); setVersion('1.0.0'); setDescription(''); setPrice(0); setIsFree(true);
     };
 
     return (
         <form onSubmit={handleSubmit} className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 space-y-4">
+            <h3 className="text-xl font-semibold">Submit New Extension</h3>
             <input type="text" placeholder="Extension Name" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
             <input type="text" placeholder="Version (e.g., 1.0.0)" value={version} onChange={e => setVersion(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
             <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" rows={3} required />
@@ -91,8 +94,33 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
                  <label className="flex items-center gap-2"><input type="checkbox" checked={isFree} onChange={e => setIsFree(e.target.checked)} /> Free</label>
                 {!isFree && <input type="number" placeholder="Price (VLT)" value={price} onChange={e => setPrice(Number(e.target.value))} className="bg-slate-800 p-2 rounded border border-slate-600 w-32" />}
             </div>
-            <p className="text-xs text-slate-400">Code analysis and endpoint requirement parsing are simulated upon submission.</p>
+            <p className="text-xs text-slate-400">Code analysis, endpoint requirement parsing, and NFT contract generation (using AxiomScript) are simulated upon submission.</p>
             <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 p-3 font-semibold rounded-lg">Submit for Validation</button>
+        </form>
+    )
+};
+
+const SubmitFunctionView: React.FC<{ onSubmit: DeveloperPortalProps['onFunctionSubmit'] }> = ({ onSubmit }) => {
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [cost, setCost] = useState(0.1);
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSubmit({
+            name, description, costPerCall: Number(cost), sdkIntegration: `${name.toLowerCase().replace(/\s/g, '_')}_sdk_v1`
+        });
+        setName(''); setDescription(''); setCost(0.1);
+    };
+
+     return (
+        <form onSubmit={handleSubmit} className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 space-y-4">
+            <h3 className="text-xl font-semibold">Submit New Function Protocol</h3>
+            <p className="text-sm text-slate-400">Propose a new high-level protocol for inclusion in the "Functions" service marketplace. Submissions that replicate official Ghost Veil services will be rejected.</p>
+            <input type="text" placeholder="Protocol Name" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
+            <textarea placeholder="Protocol Description" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" rows={3} required />
+             <input type="number" placeholder="Cost per Call (VLT)" value={cost} onChange={e => setCost(Number(e.target.value))} className="bg-slate-800 p-2 rounded border border-slate-600 w-48" step="0.01" min="0" required />
+            <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 p-3 font-semibold rounded-lg">Submit for Review</button>
         </form>
     )
 };
@@ -108,7 +136,8 @@ const DeveloperPortal: React.FC<DeveloperPortalProps> = (props) => {
     const tabs = [
         { id: 'my_extensions', label: 'My Extensions', icon: StoreIcon },
         { id: 'sales', label: 'Sales Dashboard', icon: ChartBarIcon },
-        { id: 'submit', label: 'Submit Extension', icon: ArrowUpTrayIcon },
+        { id: 'submit_ext', label: 'Submit Extension', icon: ArrowUpTrayIcon },
+        { id: 'submit_func', label: 'Submit Function', icon: CodeBracketIcon },
         { id: 'sdk_docs', label: 'SDK & Docs', icon: BookOpenIcon },
         { id: 'testing_queue', label: 'Testing Queue', icon: FlaskIcon },
     ];
@@ -126,7 +155,8 @@ const DeveloperPortal: React.FC<DeveloperPortalProps> = (props) => {
             </div>
             {activeTab === 'my_extensions' && <MyExtensionsView extensions={props.extensions} authorId={props.currentUser.operatorId} />}
             {activeTab === 'sales' && <SalesDashboard devProfile={props.developerProfile} />}
-            {activeTab === 'submit' && <SubmitExtensionView onSubmit={props.onExtensionSubmit} />}
+            {activeTab === 'submit_ext' && <SubmitExtensionView onSubmit={props.onExtensionSubmit} />}
+            {activeTab === 'submit_func' && <SubmitFunctionView onSubmit={props.onFunctionSubmit} />}
             {activeTab === 'sdk_docs' && <SDKDocs />}
             {activeTab === 'testing_queue' && <p className="text-slate-400">Community testing queue will be displayed here.</p>}
         </div>

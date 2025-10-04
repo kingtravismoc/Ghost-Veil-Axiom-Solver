@@ -1,11 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import type { Signal } from '../types';
 
-interface SpectrumAnalyzerProps {
+interface LiveSpectrumVisualizerProps {
     signals: Signal[];
 }
 
-const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ signals }) => {
+const LiveSpectrumVisualizer: React.FC<LiveSpectrumVisualizerProps> = ({ signals }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -18,31 +18,20 @@ const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ signals }) => {
         const width = canvas.width;
         const height = canvas.height;
 
-        // Shift existing image down
-        const imageData = ctx.getImageData(0, 0, width, height);
-        ctx.putImageData(imageData, 0, 1);
+        // Shift existing image to the left to create waterfall effect
+        const imageData = ctx.getImageData(1, 0, width - 1, height);
+        ctx.putImageData(imageData, 0, 0);
 
-        // Clear top row
+        // Clear the rightmost column for the new frame
         ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, width, 1);
-
-        // Draw horizontal grid lines (now representing amplitude)
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 0.5;
-        for (let i = 1; i < 5; i++) {
-            const x = (width / 5) * i;
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, 1);
-            ctx.stroke();
-        }
+        ctx.fillRect(width - 1, 0, 1, height);
         
         // Find the most recent signals
         if (signals.length === 0) return;
         const recentSignals = signals.slice(-5); // Process a few signals per frame
 
         recentSignals.forEach(signal => {
-            const x = (signal.amplitude / 100) * width;
+            const y = height - ((signal.frequency - 20e3) / (5.8e9 - 20e3)) * height;
             const brightness = 150 + (signal.amplitude / 100) * 105;
             const size = 1 + (signal.snr / 50) * 2;
              let color;
@@ -57,22 +46,17 @@ const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ signals }) => {
 
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(x, 0, size, 0, Math.PI * 2);
+            ctx.arc(width - 1, y, size, 0, Math.PI * 2);
             ctx.fill();
         });
 
     }, [signals]);
 
     return (
-        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 h-full flex flex-col">
-             <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-slate-300">
-                Live Spectrum
-            </h2>
-            <div className="w-full flex-grow rounded bg-slate-900 min-h-[300px]">
-                <canvas ref={canvasRef} width="300" height="800" className="w-full h-full" />
-            </div>
+        <div className="w-full h-full bg-slate-900">
+            <canvas ref={canvasRef} width="1200" height="200" className="w-full h-full" />
         </div>
     );
 };
 
-export default SpectrumAnalyzer;
+export default LiveSpectrumVisualizer;

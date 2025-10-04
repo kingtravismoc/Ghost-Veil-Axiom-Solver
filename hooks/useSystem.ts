@@ -5,7 +5,8 @@ import type {
     Traceback, MLInsight, P2PNode, MacroThreat, MicrophoneStatus, AudioThreat,
     ScanMode, ProtectionStrategy, Sentinel, AIConfig, ActivityEvent, P2PState,
     ImplantedDevice, ImplantedDeviceStatus, UserProfile, GovApplication, Friend, Network,
-    SystemStatus, Trigger, Wallet, DeveloperProfile, Extension, Transaction, SystemConfig, OmegaProtocolState
+    SystemStatus, Trigger, Wallet, DeveloperProfile, Extension, Transaction, SystemConfig, OmegaProtocolState, FourDSafetyValidationResult,
+    FunctionProtocol, TreasuryState, RewardAllocation, UserContribution, CognitiveMetricsState
 } from '../types';
 import { sdrDevilService } from '../services/sdrDevilService';
 import { audioAnalysisService } from '../services/audioAnalysisService';
@@ -16,11 +17,35 @@ import { secureCommService } from '../services/secureCommService';
 // --- SUPER ADMIN CONTROL ---
 // Set this to 1 and reload to trigger the first-time setup flow for the super admin.
 // After setup is complete, this flag has no effect.
-// FIX: Explicitly type SUPER_ADMIN_ENABLED as a number to prevent a TypeScript error. Since it's a `const` initialized to `0`, TypeScript infers its type as the literal `0`, causing a comparison error with `1`. This change ensures it's treated as a number that can be changed for testing purposes as intended.
 const SUPER_ADMIN_ENABLED: number = 0;
 const SUPER_ADMIN_EMAIL = "kingtravismo@gmail.com";
 // This is a simulated "magic" token. In a real app, this would be a real API call.
 const VALID_GITHUB_TOKEN = "ghp_kingtravismo_valid_token_simulation";
+
+// --- 4D Safety Service (integrated into hook) ---
+const fourDSafetyService = {
+    validateAction: (action: string, params: any): Promise<FourDSafetyValidationResult> => {
+        return new Promise(resolve => {
+            setTimeout(() => {
+                if (action === 'ACTIVATE_PROTECTION' && params.strategy === 'QUANTUM_NOISE') {
+                    if (Math.random() > 0.2) {
+                        resolve({ isSafe: true, recommendation: "Quantum noise field is within safe bio-resonance limits." });
+                    } else {
+                        resolve({ isSafe: false, recommendation: "Potential for interference with low-frequency neural signals detected. Action blocked." });
+                    }
+                } else if (action === 'HIDE_DEVICE' && params.device?.type.includes('Life-Support')) {
+                     resolve({ isSafe: false, recommendation: "Hiding critical life-support devices is against safety axioms. Action blocked." });
+                } else if (action === 'DEPLOY_PERSISTENCE') {
+                    resolve({ isSafe: true, recommendation: "System resource check passed. Safe to deploy agent." });
+                }
+                else {
+                    resolve({ isSafe: true, recommendation: "Action validated against safety axioms." });
+                }
+            }, 1500);
+        });
+    }
+};
+
 
 const useSystem = () => {
     // State declarations
@@ -55,10 +80,11 @@ const useSystem = () => {
     const [isScanningImplants, setIsScanningImplants] = useState(false);
     const [selectedDeviceForDetail, setSelectedDeviceForDetail] = useState<ImplantedDevice | null>(null);
     const [isHidingDevice, setIsHidingDevice] = useState(false);
-    const [hideSafetyCheckResult, setHideSafetyCheckResult] = useState<{ isSafe: boolean; recommendation: string } | null>(null);
+    const [safetyCheckResult, setSafetyCheckResult] = useState<FourDSafetyValidationResult | null>(null);
+    const [isSafetyValidating, setIsSafetyValidating] = useState(false);
     const [isFirstRun, setIsFirstRun] = useState(localStorage.getItem('ghost_veil_first_run') !== 'false');
     const [isFork, setIsFork] = useState(false);
-    const [currentUser, setCurrentUser] = useState<UserProfile>({ operatorId: 'OP_7B3A9C1D', role: 'OPERATOR', privateKey: '...' });
+    const [currentUser, setCurrentUser] = useState<UserProfile>({ operatorId: 'OP_7B3A9C1D', role: 'OPERATOR', privateKey: '...', contributions: [] });
     const [friends, setFriends] = useState<Friend[]>([]);
     const [govApplications, setGovApplications] = useState<GovApplication[]>([]);
     const [showAddFriendModal, setShowAddFriendModal] = useState(false);
@@ -78,11 +104,20 @@ const useSystem = () => {
     const [showWalletModal, setShowWalletModal] = useState(false);
     const [showBuyTokensModal, setShowBuyTokensModal] = useState(false);
     const [systemConfig, setSystemConfig] = useState<SystemConfig>({ moonPayApiKey: null, moonPaySecretKey: null, systemWalletAddress: null, superAdminWalletAddress: null });
-    
-    // New state for admin setup and commerce gating
     const [isCommerceEnabled, setIsCommerceEnabled] = useState(false);
     const [showAdminSetup, setShowAdminSetup] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+    // New State for FaaS and Tokenomics
+    const [functionProtocols, setFunctionProtocols] = useState<FunctionProtocol[]>([]);
+    const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
+
+    const [showNetworkDetailModal, setShowNetworkDetailModal] = useState(false);
+    const [signalToAnnotate, setSignalToAnnotate] = useState<Signal | null>(null);
+    const [showSignalAnnotationModal, setShowSignalAnnotationModal] = useState(false);
+    const [isClassifyingSignal, setIsClassifyingSignal] = useState(false);
+    const [cognitiveMetricsState, setCognitiveMetricsState] = useState<CognitiveMetricsState>({ bioCoherence: 75, subconsciousInfluence: 10, neuralEntrainment: 5 });
+
 
     const aiRef = useRef<GoogleGenAI | null>(null);
 
@@ -102,6 +137,21 @@ const useSystem = () => {
                         setIsSuperAdmin(true);
                     }
                 }
+                 // Initialize Treasury for Super Admin
+                setTreasuryState({
+                    masterWalletAddress: "GVP_MASTER_TREASURY_0x00...000",
+                    totalAgtSupply: 1_000_000_000,
+                    circulatingAgt: 5_000_000,
+                    proliferationGoal: 10000,
+                    currentUsers: 1337,
+                    isConversionUnlocked: false,
+                    rewardAllocations: [
+                        { type: 'SIGNAL_CLASSIFICATION', agt: 5 },
+                        { type: 'EXTENSION_REVIEW', agt: 20 },
+                        { type: 'VOTE', agt: 2 },
+                        { type: 'FEEDBACK', agt: 10 },
+                    ]
+                });
             } else if (SUPER_ADMIN_ENABLED === 1) {
                 setShowAdminSetup(true);
                 addLog("No system configuration found. Initiating Super Admin setup.", "WARN");
@@ -111,6 +161,24 @@ const useSystem = () => {
         } catch (error) {
             addLog("Failed to load configuration. Running in restricted mode.", "ERROR");
         }
+         setFunctionProtocols([
+            { id: 'qtp_01', name: 'Quantum Transport Protocol API', description: 'Leverages the P2P network to create a globally distributed RF repeater mesh, enabling the analog transport of signals with quantum-grade obfuscation.', status: 'AVAILABLE', costPerCall: 0.1, sdkIntegration: 'import { qtp } from "@ghostveil/sdk"', author: 'GHOST_VEIL' },
+            { id: 'vrs_01', name: 'VReality Sandbox', description: 'Provides a sandboxed virtual environment for testing signal propagation and countermeasure effectiveness against simulated neural architectures.', status: 'COMING_SOON', costPerCall: 0.5, sdkIntegration: 'import { sandbox } from "@ghostveil/sdk"', author: 'GHOST_VEIL' },
+            { id: 'wp_01', name: 'Wireless Power Consortium', description: 'Facilitates the negotiation and transfer of wireless power over short distances using resonant inductive coupling protocols.', status: 'COMING_SOON', costPerCall: 1.0, sdkIntegration: 'import { power } from "@ghostveil/sdk"', author: 'GHOST_VEIL' },
+            { id: 'sm_01', name: 'Skeleton Mapping & Location', description: 'Utilizes micro-doppler radar signatures from the network to provide anonymized human skeletal mapping and location services for authorized security applications.', status: 'COMING_SOON', costPerCall: 2.5, sdkIntegration: 'import { mapping } from "@ghostveil/sdk"', author: 'GHOST_VEIL' },
+        ]);
+    }, []);
+
+    // Cognitive Metrics Simulation
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCognitiveMetricsState(prev => ({
+                bioCoherence: Math.max(50, Math.min(99, prev.bioCoherence + (Math.random() - 0.5) * 2)),
+                subconsciousInfluence: Math.max(0, Math.min(100, prev.subconsciousInfluence + (Math.random() - 0.48) * 2)),
+                neuralEntrainment: Math.max(0, Math.min(100, prev.neuralEntrainment + (Math.random() - 0.49) * 1.5)),
+            }));
+        }, 2000);
+        return () => clearInterval(interval);
     }, []);
 
 
@@ -120,6 +188,18 @@ const useSystem = () => {
             aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
         }
     }, []);
+    
+    useEffect(() => {
+        if (signalToAnnotate) {
+            setShowSignalAnnotationModal(true);
+        }
+    }, [signalToAnnotate]);
+    
+    useEffect(() => {
+        if (!showSignalAnnotationModal) {
+            setSignalToAnnotate(null);
+        }
+    }, [showSignalAnnotationModal]);
 
     const addLog = useCallback((message: string, type: LogType = 'SYSTEM') => {
         setLogEntries(prev => [...prev.slice(-100), { id: `log_${Date.now()}`, timestamp: Date.now(), type, message }]);
@@ -137,7 +217,6 @@ const useSystem = () => {
 
     const analyzeSignalsWithAI = useCallback(async (newSignals: Signal[]) => {
         if (aiConfig.provider !== 'GEMINI' || !aiRef.current) {
-            // Simulate local analysis
             if (newSignals.some(s => s.amplitude > 85 && s.snr > 35)) {
                  const newThreat: Threat = { id: `threat_${Date.now()}`, type: 'SIMULATED_HIGH_ENERGY_TRANSMISSION', method: 'Brute-force Signal Injection', risk: 'HIGH', confidence: 0.88, influence: 'Device Disruption', transmissionMode: 'Wide-spectrum Burst', frequency: newSignals.find(s=>s.amplitude > 85)!.frequency / 1e6 };
                  setThreats(prev => [...prev, newThreat]);
@@ -150,18 +229,15 @@ const useSystem = () => {
         setIsLoading(true);
         addLog('Sending signal data to Gemini for analysis...', 'AI');
         try {
-            const prompt = `Analyze the following signal data for potential threats. The data is an array of objects with frequency, amplitude, modulation, and SNR. Focus on anomalies, high-power signals, or unusual modulations. Signals of concern are typically above 80 amplitude and 35 SNR. Respond ONLY with a JSON array of threat objects or an empty array []. Each threat object should have: type (string, e.g., "COGNITIVE_RESONANCE_ATTACK"), method (string), risk ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'EXTREME'), confidence (number 0-1), influence (string), transmissionMode (string), and frequency (number in MHz). Here is the data: ${JSON.stringify(newSignals, null, 2)}`;
+            const prompt = `Analyze the following signal data for potential threats... Respond ONLY with a JSON array of threat objects or an empty array []. Each threat object should have: type, method, risk, confidence, influence, transmissionMode, and frequency. Here is the data: ${JSON.stringify(newSignals, null, 2)}`;
 
             const response = await aiRef.current.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
-                 config: {
-                    responseMimeType: 'application/json'
-                 }
+                 config: { responseMimeType: 'application/json' }
             });
-
-            const text = response.text;
-            const newThreats = JSON.parse(text) as Omit<Threat, 'id'>[];
+            
+            const newThreats = JSON.parse(response.text) as Omit<Threat, 'id'>[];
             if (newThreats.length > 0) {
                 const threatsWithIds: Threat[] = newThreats.map(t => ({...t, id: `threat_${Date.now()}_${Math.random()}`}));
                 setThreats(prev => [...prev, ...threatsWithIds]);
@@ -192,131 +268,211 @@ const useSystem = () => {
         return () => clearInterval(interval);
     }, [isMonitoring, scanMode, analyzeSignalsWithAI]);
 
+    const activateProtection = async () => { 
+        setIsSafetyValidating(true);
+        setSafetyCheckResult(null);
+        addLog('Requesting 4D safety validation for protection activation...', 'SYSTEM');
+        const validation = await fourDSafetyService.validateAction('ACTIVATE_PROTECTION', { strategy: protectionStrategy });
+        setSafetyCheckResult(validation);
+        setIsSafetyValidating(false);
 
-    const verifyGithubToken = (token: string): Promise<{ success: boolean; email?: string; message: string }> => {
-        addLog("Verifying GitHub token...", "SYSTEM");
-        return new Promise(resolve => {
-            setTimeout(() => {
-                if (token === VALID_GITHUB_TOKEN) {
-                    addLog("GitHub token verified successfully for Super Admin.", "SYSTEM");
-                    resolve({ success: true, email: SUPER_ADMIN_EMAIL, message: "Verification successful!" });
-                } else {
-                    addLog("GitHub token verification failed.", "ERROR");
-                    resolve({ success: false, message: "Invalid token. Ensure you are using the correct Super Admin token." });
-                }
+        if (validation.isSafe) {
+            addLog('Safety validation passed. Activating protection.', 'SYSTEM');
+            setIsLoading(true); 
+            setTimeout(() => { 
+                setIsProtected(true); 
+                addLog(`Ghost Veil protection activated with ${protectionStrategy}.`); 
+                setIsLoading(false); 
             }, 1000);
-        });
+        } else {
+            addLog(`Protection activation blocked by safety governor: ${validation.recommendation}`, 'ERROR');
+        }
     };
+    const deactivateProtection = () => { setIsProtected(false); addLog('Ghost Veil protection deactivated.'); setObfuscationLayers([]); setSafetyCheckResult(null); };
 
-    const completeAdminSetup = (keys: { apiKey: string; secretKey: string }) => {
-        addLog("Finalizing system setup...", "SYSTEM");
-        
-        const systemWallet = p2pNetworkService.blockchainService.createWallet();
-        const superAdminWallet = p2pNetworkService.blockchainService.createWallet();
-        
-        const newConfig: SystemConfig = {
-            moonPayApiKey: keys.apiKey,
-            moonPaySecretKey: keys.secretKey,
-            systemWalletAddress: systemWallet.address,
-            superAdminWalletAddress: superAdminWallet.address,
-        };
-
-        const superAdminUser: UserProfile = { ...currentUser, role: 'SUPER_ADMIN' };
-        
-        try {
-            localStorage.setItem('ghost_veil_system_config', JSON.stringify(newConfig));
-            localStorage.setItem('ghost_veil_user_profile', JSON.stringify(superAdminUser));
-
-            setSystemConfig(newConfig);
-            setCurrentUser(superAdminUser);
-            setIsSuperAdmin(true);
-            setIsCommerceEnabled(true);
-            setShowAdminSetup(false);
-            setWallet(superAdminWallet); // Assign the generated wallet to the current user
-            
-            addLog("System wallets generated and configured.", "SYSTEM");
-            addLog("MoonPay API keys stored.", "SYSTEM");
-            addLog("Commerce system is now enabled for all users.", "SYSTEM");
-
-        } catch (error) {
-            addLog("Failed to save system configuration.", "ERROR");
+    const onTraceback = (threatId: string) => { setIsTracing(true); addLog('Engaging Axiomatic Solver for traceback...'); setTimeout(() => { setTracebackData({ source: {lat: 34.0522, lon: -118.2437, name: "Simulated Source"}, path: [{medium: "Satellite", step: "Uplink Relay"}], narrative: "Signal origin traced through a simulated satellite relay to a terrestrial station."}); setIsTracing(false); addLog('Traceback complete.'); }, 3000)};
+    
+    const onDeployPersistence = async () => {
+        setIsSafetyValidating(true);
+        setSafetyCheckResult(null);
+        const result = await fourDSafetyService.validateAction('DEPLOY_PERSISTENCE', {});
+        setSafetyCheckResult(result);
+        setIsSafetyValidating(false);
+        if (result.isSafe) {
+            setIsDeployingPersistence(true);
+            setTimeout(() => {
+                setIsPersistenceDeployed(true);
+                setIsDeployingPersistence(false);
+                addLog("Persistent agent deployed to simulated cache.", "SYSTEM");
+            }, 2000);
+        } else {
+            addLog(`Persistence deployment blocked: ${result.recommendation}`, 'ERROR');
         }
     };
 
+    const awardContribution = (type: UserContribution['type'], description: string) => {
+        if (!treasuryState) return;
+        const reward = treasuryState.rewardAllocations.find(r => r.type === type);
+        if (!reward) return;
 
-    // Dummy implementations for other functions
-    const activateProtection = () => { setIsLoading(true); setTimeout(() => { setIsProtected(true); addLog('Ghost Veil protection activated.'); setIsLoading(false); }, 2000)};
-    const deactivateProtection = () => { setIsProtected(false); addLog('Ghost Veil protection deactivated.'); setObfuscationLayers([]); };
-    const onTraceback = (threatId: string) => { setIsTracing(true); addLog('Engaging Axiomatic Solver for traceback...'); setTimeout(() => { setTracebackData({ source: {lat: 34.0522, lon: -118.2437, name: "Simulated Source"}, path: [{medium: "Satellite", step: "Uplink Relay"}], narrative: "Signal origin traced through a simulated satellite relay to a terrestrial station."}); setIsTracing(false); addLog('Traceback complete.'); }, 3000)};
-    const onIntelligentScan = () => { /* ... */ };
+        const newContribution: UserContribution = {
+            id: `contrib_${Date.now()}`,
+            timestamp: Date.now(),
+            type,
+            description,
+            agtAwarded: reward.agt
+        };
+        
+        setCurrentUser(prev => ({...prev, contributions: [...prev.contributions, newContribution]}));
+        setWallet(prev => prev ? ({...prev, agtBalance: prev.agtBalance + reward.agt}) : null);
+        addLog(`Contribution rewarded: +${reward.agt} AGT for ${type}.`, 'SYSTEM');
+    }
+
+    const classifySignalWithAI = async (signalId: string) => {
+        if (aiConfig.provider !== 'GEMINI' || !aiRef.current) {
+            addLog("Enable Gemini in settings for AI classification.", "WARN");
+            return;
+        }
+        setIsClassifyingSignal(true);
+        addLog(`Classifying signal ${signalId} with Gemini...`, 'AI');
+        const signal = signals.find(s => s.id === signalId);
+        if (!signal) {
+            addLog(`Signal ${signalId} not found for classification.`, 'ERROR');
+            setIsClassifyingSignal(false);
+            return;
+        }
+        try {
+            const prompt = `Analyze this signal data: {frequency: ${signal.frequency}, amplitude: ${signal.amplitude}, modulation: "${signal.modulation}", snr: ${signal.snr}}. Classify its likely source (e.g., 'Wi-Fi Handshake', 'Satellite Downlink', 'Encrypted Data Burst'). Provide a brief one-sentence summary and up to 3 relevant single-word tags.`;
+            
+            const response = await aiRef.current.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            classification: { type: Type.STRING },
+                            summary: { type: Type.STRING },
+                            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        },
+                    },
+                },
+            });
+
+            const result = JSON.parse(response.text);
+            updateSignalAnnotation(signalId, { ...result, tags: result.tags.join(', ') });
+            addLog(`Signal ${signalId} classified as: ${result.classification}`, 'AI');
+            awardContribution('SIGNAL_CLASSIFICATION', `Classified signal at ${(signal.frequency / 1e6).toFixed(2)} MHz`);
+        } catch (e) {
+            addLog("AI Signal classification failed.", 'ERROR');
+        } finally {
+            setIsClassifyingSignal(false);
+        }
+    };
+
+    const updateSignalAnnotation = (signalId: string, data: { classification: string, summary: string, tags: string }) => {
+        setSignals(prevSignals => prevSignals.map(s => {
+            if (s.id === signalId) {
+                return {
+                    ...s,
+                    isClassified: true,
+                    classification: data.classification,
+                    summary: data.summary,
+                    tags: data.tags.split(',').map(t => t.trim()).filter(Boolean),
+                };
+            }
+            return s;
+        }));
+    };
     
-    // Props objects for components
+
+    const verifyGithubToken = (token: string): Promise<{ success: boolean; email?: string; message: string }> => {
+        addLog("Verifying GitHub token...", "SYSTEM");
+        return new Promise(resolve => { setTimeout(() => { if (token === VALID_GITHUB_TOKEN) { addLog("GitHub token verified successfully for Super Admin.", "SYSTEM"); resolve({ success: true, email: SUPER_ADMIN_EMAIL, message: "Verification successful!" }); } else { addLog("GitHub token verification failed.", "ERROR"); resolve({ success: false, message: "Invalid token. Ensure you are using the correct Super Admin token." }); } }, 1000); });
+    };
+
+    const completeAdminSetup = (keys: { apiKey: string; moonPaySecretKey: string }) => {
+        addLog("Finalizing system setup...", "SYSTEM");
+        const systemWallet = p2pNetworkService.blockchainService.createWallet();
+        const superAdminWallet = p2pNetworkService.blockchainService.createWallet();
+        superAdminWallet.balance = 999999; // Super admin starts with funds
+        superAdminWallet.agtBalance = 200_000_000; // 20% of total supply
+        const newConfig: SystemConfig = { moonPayApiKey: keys.apiKey, moonPaySecretKey: keys.moonPaySecretKey, systemWalletAddress: systemWallet.address, superAdminWalletAddress: superAdminWallet.address, };
+        const superAdminUser: UserProfile = { ...currentUser, role: 'SUPER_ADMIN', contributions: [] };
+        try { localStorage.setItem('ghost_veil_system_config', JSON.stringify(newConfig)); localStorage.setItem('ghost_veil_user_profile', JSON.stringify(superAdminUser)); setSystemConfig(newConfig); setCurrentUser(superAdminUser); setIsSuperAdmin(true); setIsCommerceEnabled(true); setShowAdminSetup(false); setWallet(superAdminWallet); addLog("System wallets generated and configured.", "SYSTEM"); addLog("MoonPay API keys stored.", "SYSTEM"); addLog("Commerce system is now enabled for all users.", "SYSTEM"); } catch (error) { addLog("Failed to save system configuration.", "ERROR"); }
+    };
+    
+    // Props objects
     const sdrDevilProps = {
         isMonitoring, isLoading, isProtected, canActivate: canActivateProtection, scanMode, setScanMode, protectionStrategy, setProtectionStrategy,
         startMonitoring, stopMonitoring, activateProtection, deactivateProtection,
-        activateButtonText: 'Activate Veil', isIntelligentScanning: false, onIntelligentScan
+        activateButtonText: 'Activate Veil', isIntelligentScanning: false, onIntelligentScan: () => {}, isSafetyValidating
     };
     const detectedThreatsProps = { threats, onTraceback, onToggleMute: () => {}, onToggleSolo: () => {}, isTracing };
     const axiomSilenceProps = { isActive: micStatus === 'ACTIVE', status: micStatus, noiseLevel: ambientNoise, threats: audioThreats, activate: () => setMicStatus('ACTIVE'), deactivate: () => setMicStatus('INACTIVE') };
     const ghostNetTriageProps = { nodes: p2pState.nodes, selectedNodeIds: selectedP2PNodes, onNodeSelect: () => {}, macroThreat };
     const herdHealthProps = { isActive: p2pState.isActive, onToggle: (isActive: boolean) => setP2pState(p => ({ ...p, isActive})), nodes: p2pState.nodes, macroThreat };
-    const systemDashboardProps = { totalSignals, significantSignals: signals.filter(s => s.amplitude > 60).length, threats: threats.length, p2pState, acuity, insights: mlInsights, activityEvents };
-    const persistenceProps = { isDeployed: isPersistenceDeployed, isDeploying: isDeployingPersistence, onDeploy: () => { setIsDeployingPersistence(true); setTimeout(() => { setIsPersistenceDeployed(true); setIsDeployingPersistence(false); }, 2000)} };
+    const persistenceProps = { isDeployed: isPersistenceDeployed, isDeploying: isDeployingPersistence, onDeploy: onDeployPersistence, isSafetyValidating, safetyCheckResult };
     const bioImplantProps = { devices: implantedDevices, isScanning: isScanningImplants, onScan: () => {}, onSelectDevice: setSelectedDeviceForDetail, p2pNodes: p2pState.nodes };
-    const deviceDetailProps = { onUpdateStatus: () => {}, onHideDevice: () => {}, isHiding: isHidingDevice, safetyCheckResult: hideSafetyCheckResult };
+    const deviceDetailProps = { onUpdateStatus: () => {}, onHideDevice: () => {}, isHiding: isHidingDevice, safetyCheckResult };
     const triggerProps = { triggers, onAddTrigger: async () => {}, onToggleTrigger: () => {}, onDeleteTrigger: () => {}, isProcessing: isProcessingTrigger };
+    const adminDashboardProps = { applications: govApplications, onApproveApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'APPROVED'} : a)), onRejectApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'REJECTED'} : a)), functionProtocols, onApproveFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'APPROVED'} : f)), onRejectFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'REJECTED'} : f)), treasuryState, onUpdateRewards: (allocs: RewardAllocation[]) => { if(treasuryState) setTreasuryState({...treasuryState, rewardAllocations: allocs}); } };
 
-
-    // ... many more functions and useEffects would go here...
-    const handleAcknowledgeFirstRun = () => {
-        localStorage.setItem('ghost_veil_first_run', 'false');
-        setIsFirstRun(false);
-    }
-    
+    const handleAcknowledgeFirstRun = () => { localStorage.setItem('ghost_veil_first_run', 'false'); setIsFirstRun(false); }
     const addFriend = (id: string) => { addLog(`Friend request sent to ${id}.`); setShowAddFriendModal(false); };
     const submitGovApplication = (app: Omit<GovApplication, 'id'|'status'>) => { setGovApplications(prev => [...prev, {...app, id: `app_${Date.now()}`, status: 'PENDING'}]); addLog(`Government application for ${app.agencyName} submitted for review.`); };
     const addCustomNetwork = (name: string) => { /* ... */ };
-    const purchaseExtension = (ext: Extension) => { /* ... */ };
-    const installExtension = (id: string) => { /* ... */ };
-    const uninstallExtension = (id: string) => { /* ... */ };
+    
+    const purchaseExtension = (ext: Extension) => {
+        if (!wallet || !developerProfile || !systemConfig) return;
+        
+        const saleResult = p2pNetworkService.blockchainService.processExtensionSale(developerProfile, developerProfile, systemConfig, ext); // Simulating self-purchase for now
+        
+        if (saleResult.success) {
+            saleResult.newTransactions.forEach(tx => addLog(tx.description, 'BLOCKCHAIN'));
+            setExtensions(prev => prev.map(e => e.id === ext.id ? {...e, isInstalled: true, isNft: true, contractId: `GVC_${Date.now()}`} : e));
+        } else {
+            addLog(`Purchase failed for ${ext.name}. Insufficient funds.`, 'ERROR');
+        }
+    };
+    
+    const installExtension = (id: string) => { setExtensions(prev => prev.map(e => e.id === id ? {...e, isInstalled: true} : e)); };
+    const uninstallExtension = (id: string) => { setExtensions(prev => prev.map(e => e.id === id ? {...e, isInstalled: false} : e)); };
     const submitExtension = (ext: any) => { /* ... */ };
     const buyTokens = (amount: number, method: 'MOONPAY' | 'LUMENS') => { /* ... */ };
+    const submitFunctionProtocol = (func: Omit<FunctionProtocol, 'id'|'author'|'authorId'|'reviewStatus'|'status'>) => {
+        const newFunc: FunctionProtocol = {
+            ...func,
+            id: `func_${Date.now()}`,
+            author: 'USER',
+            authorId: currentUser.operatorId,
+            status: 'AVAILABLE',
+            reviewStatus: 'PENDING'
+        };
+        setFunctionProtocols(p => [...p, newFunc]);
+        addLog(`Function Protocol "${func.name}" submitted for review.`, 'SYSTEM');
+    };
     
     return {
-        // State
         signals, threats, logEntries, isMonitoring, isLoading, isProtected, obfuscationLayers, countermeasures, tracebackData, isTracing,
         mlInsights, p2pState, macroThreat, selectedP2PNodes, micStatus, ambientNoise, audioThreats, scanMode, protectionStrategy, sentinels,
         aiConfig, activityEvents, totalSignals, acuity, isPersistenceDeployed, isDeployingPersistence,
-        implantedDevices, isScanningImplants, selectedDeviceForDetail, isHidingDevice, hideSafetyCheckResult, isFirstRun, isFork, currentUser,
+        implantedDevices, isScanningImplants, selectedDeviceForDetail, isHidingDevice, safetyCheckResult, isFirstRun, isFork, currentUser,
         friends, govApplications, showAddFriendModal, showShareModal, showGovSignupModal, networks, selectedNetwork, showAddNetworkModal,
         systemStatus, triggers, showTriggersModal, isProcessingTrigger, extensions, developerProfile, wallet, extensionToPurchase, showWalletModal, showBuyTokensModal, systemConfig,
+        isCommerceEnabled, showAdminSetup, isSuperAdmin, showNetworkDetailModal, signalToAnnotate, showSignalAnnotationModal, isClassifyingSignal,
+        functionProtocols, treasuryState, cognitiveMetricsState,
         
-        // New state
-        isCommerceEnabled,
-        showAdminSetup,
-        isSuperAdmin,
-
-        // Setters
         setAiConfig, setScanMode, setProtectionStrategy, setSelectedDeviceForDetail, setShowAddFriendModal, setShowShareModal, setShowGovSignupModal,
         setSelectedNetwork, setShowAddNetworkModal, setShowTriggersModal, setExtensionToPurchase, setShowWalletModal, setShowBuyTokensModal,
-
-        // Functions
+        setShowNetworkDetailModal, setSignalToAnnotate, setShowSignalAnnotationModal,
+        
         addLog, handleAcknowledgeFirstRun, addFriend, submitGovApplication, addCustomNetwork, purchaseExtension, installExtension, uninstallExtension, submitExtension, buyTokens, 
-        // New functions
-        completeAdminSetup,
-        verifyGithubToken,
+        completeAdminSetup, verifyGithubToken, classifySignalWithAI, updateSignalAnnotation, submitFunctionProtocol,
 
-        // Prop objects
-        sdrDevilProps,
-        detectedThreatsProps,
-        axiomSilenceProps,
-        ghostNetTriageProps,
-        herdHealthProps,
-        systemDashboardProps,
-        persistenceProps,
-        bioImplantProps,
-        deviceDetailProps,
-        triggerProps
+        sdrDevilProps, detectedThreatsProps, axiomSilenceProps, ghostNetTriageProps, herdHealthProps,
+        persistenceProps, bioImplantProps, deviceDetailProps, triggerProps, adminDashboardProps
     };
 };
 

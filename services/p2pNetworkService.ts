@@ -1,4 +1,4 @@
-import type { P2PNode, MacroThreat, LogType, Wallet, DeveloperProfile, Extension, Transaction, TransactionType } from '../types';
+import type { P2PNode, MacroThreat, LogType, Wallet, DeveloperProfile, Extension, Transaction, TransactionType, SystemConfig } from '../types';
 import { MASTER_VERSION_HASH } from './validationService';
 import { sha256 } from 'js-sha256';
 
@@ -41,19 +41,23 @@ class BlockchainService {
 
     public addTransaction(transaction: Transaction) {
         this.pendingTransactions.push(transaction);
+        // In a real system, we'd wait for more transactions and then mine a block.
+        // For this simulation, we'll create a block immediately.
+        const lastBlock = this.blockchain[this.blockchain.length - 1];
+        this.createBlock(Math.floor(Math.random() * 100000), lastBlock.hash);
     }
 
     public createWallet(): Wallet {
         // In a real app, this would involve public/private key generation.
         const privateKey = `priv_key_${sha256(Math.random().toString())}`;
         const address = `VLT_ADDR_${sha256(privateKey).slice(0, 24)}`;
-        return { address, privateKey, balance: 1000 }; // Start with some tokens for testing
+        return { address, privateKey, balance: 1000, agtBalance: 0 }; // Start with some tokens for testing
     }
 
     public processExtensionSale(
         buyerProfile: DeveloperProfile,
         developerProfile: DeveloperProfile,
-        systemConfig: { systemWalletAddress: string | null; superAdminWalletAddress: string | null },
+        systemConfig: SystemConfig,
         extension: Extension
     ): { success: boolean; newTransactions: Transaction[] } {
 
@@ -82,8 +86,6 @@ class BlockchainService {
             description: `Sale of ${extension.name} v${extension.version}`
         };
         
-        const newTransactions: Transaction[] = [purchaseTx, saleTx];
-
         // Simulate transfers
         buyerProfile.wallet.balance -= saleAmount;
         developerProfile.wallet.balance += developerCut;
@@ -93,12 +95,26 @@ class BlockchainService {
         buyerProfile.transactions.push(purchaseTx);
         developerProfile.transactions.push(saleTx);
 
+        // Add to blockchain
+        this.addTransaction(purchaseTx);
+        this.addTransaction(saleTx);
+        
+        // Simulate NFT Minting
+        const mintTx: Transaction = {
+            id: `tx_${Date.now()}_mint`,
+            timestamp: Date.now(),
+            type: 'MINT',
+            amount: 1,
+            description: `Minted NFT for ${extension.name} to ${buyerProfile.wallet.address}`
+        };
+        this.addTransaction(mintTx);
+
+
         // In a real system, these would also create transactions to the system and network wallets
-        // For now, we'll just log it.
         console.log(`System wallet (${systemConfig.systemWalletAddress}) received ${systemCut} VLT.`);
         console.log(`Network reward pool received ${networkCut} VLT.`);
 
-        return { success: true, newTransactions };
+        return { success: true, newTransactions: [purchaseTx, saleTx, mintTx] };
     }
 
 }

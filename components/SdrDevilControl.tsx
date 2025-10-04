@@ -1,5 +1,6 @@
 import React from 'react';
 import { PlayIcon, StopIcon, ShieldIcon, ZapIcon, BrainCircuitIcon } from './icons';
+import { InfoTooltip } from './icons';
 import type { ScanMode, ProtectionStrategy } from '../types';
 
 interface SdrDevilControlProps {
@@ -18,6 +19,7 @@ interface SdrDevilControlProps {
     activateButtonText: string;
     isIntelligentScanning: boolean;
     onIntelligentScan: () => void;
+    isSafetyValidating: boolean;
 }
 
 const scanModeOptions: { value: ScanMode; label: string }[] = [
@@ -37,11 +39,11 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
         isMonitoring, isLoading, isProtected, canActivate,
         scanMode, protectionStrategy, setScanMode, setProtectionStrategy,
         startMonitoring, stopMonitoring, activateProtection, deactivateProtection,
-        activateButtonText, isIntelligentScanning, onIntelligentScan
+        activateButtonText, isIntelligentScanning, onIntelligentScan, isSafetyValidating
     } = props;
 
     const actionText = isLoading ? 'Processing...' : isMonitoring ? 'Stop Scan' : 'Start Scan';
-    const isSystemBusy = isIntelligentScanning || isLoading || isMonitoring;
+    const isSystemBusy = isIntelligentScanning || isLoading || isMonitoring || isSafetyValidating;
 
     return (
         <div className="bg-slate-800/50 rounded-lg p-4 sm:p-6 border border-slate-700 quantum-shield space-y-6">
@@ -50,19 +52,25 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
                 SDRDevil TX/RX Interface
             </h2>
             
-            <button
-                onClick={onIntelligentScan}
-                disabled={isSystemBusy}
-                className="w-full bg-gradient-to-r from-yellow-500 via-orange-600 to-red-600 hover:from-yellow-600 hover:to-red-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed px-4 py-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-orange-900/50 text-white"
-            >
-                <BrainCircuitIcon className="w-6 h-6" />
-                {isIntelligentScanning ? 'AI Validating & Scanning...' : 'Intelligent Scan'}
-            </button>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={onIntelligentScan}
+                    disabled={isSystemBusy}
+                    className="w-full bg-gradient-to-r from-yellow-500 via-orange-600 to-red-600 hover:from-yellow-600 hover:to-red-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed px-4 py-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-orange-900/50 text-white"
+                >
+                    <BrainCircuitIcon className="w-6 h-6" />
+                    {isIntelligentScanning ? 'AI Validating & Scanning...' : 'Intelligent Scan'}
+                </button>
+                <InfoTooltip text="AI-driven scan that dynamically adjusts parameters to find and classify threats with higher accuracy." />
+            </div>
 
 
             {/* Monitoring Section */}
             <div className="space-y-3 p-3 sm:p-4 border border-slate-600 rounded-lg bg-slate-900/30">
-                <label htmlFor="scan-mode" className="block text-sm font-medium text-slate-300 mb-2">Scan Mode (RX)</label>
+                <label htmlFor="scan-mode" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                    Scan Mode (RX)
+                    <InfoTooltip text="Wideband: General purpose sweep. Anomaly: Focuses on unusual, high-energy signals. Passive: Listens for faint or intermittent signals." />
+                </label>
                 <select
                     id="scan-mode"
                     value={scanMode}
@@ -84,7 +92,10 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
 
             {/* Protection Section */}
             <div className="space-y-3 p-3 sm:p-4 border border-slate-600 rounded-lg bg-slate-900/30">
-                 <label htmlFor="protection-strategy" className="block text-sm font-medium text-slate-300 mb-2">Countermeasure Strategy (TX/NMethods)</label>
+                 <label htmlFor="protection-strategy" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                     Countermeasure Strategy (TX/NMethods)
+                     <InfoTooltip text="Quantum Noise: Jams signals with unpredictable noise. Dynamic Mimicry: Copies and distorts attacker waveforms. P2P Obfuscation: Uses the peer network to create decentralized interference." />
+                 </label>
                  <select
                     id="protection-strategy"
                     value={protectionStrategy}
@@ -96,11 +107,11 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
                 </select>
                  <button
                     onClick={activateProtection}
-                    disabled={isProtected || isLoading || !canActivate || isIntelligentScanning}
+                    disabled={isProtected || isLoading || !canActivate || isIntelligentScanning || isSafetyValidating}
                     className="w-full bg-gradient-to-r from-green-600 to-teal-700 hover:from-green-700 hover:to-teal-800 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-green-900/50"
                 >
                     <ShieldIcon className="w-5 h-5" />
-                    {isLoading && !isProtected ? 'Engaging...' : activateButtonText}
+                    {isSafetyValidating ? '4D Safety Validation...' : (isLoading && !isProtected ? 'Engaging...' : activateButtonText)}
                 </button>
                 <button
                     onClick={deactivateProtection}

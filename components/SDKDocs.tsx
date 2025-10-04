@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { SDKEndpoint } from '../types';
 
@@ -80,6 +79,12 @@ const SDKDocs: React.FC = () => {
             <p className="text-slate-400">
                 Leverage the core functionalities of the Ghost Veil Protocol by calling these endpoints from within your extension's sandboxed environment.
             </p>
+            <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                <h4 className="text-lg font-semibold text-slate-200">Smart Contracts with AxiomScript</h4>
+                <p className="text-sm text-slate-400 mt-1">
+                    All extensions submitted to the store are provisioned as NFTs on the Ghost Veil private ledger. This is handled automatically on submission via a smart contract written in <strong>AxiomScript</strong>, our proprietary, sandboxed, Solana-compatible scripting language designed for RF and signal integrity operations. This ensures verifiable ownership and transparent distribution for all extensions on the platform.
+                </p>
+            </div>
             <div className="space-y-3">
                 {sdkEndpoints.map(endpoint => (
                     <SDKEndpointCard key={endpoint.name} endpoint={endpoint} />

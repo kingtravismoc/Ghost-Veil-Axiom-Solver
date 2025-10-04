@@ -1,5 +1,5 @@
 import React from 'react';
-import { CubeIcon } from './icons';
+import { CubeIcon, ShieldCheckIcon } from './icons';
 import type { Extension } from '../types';
 
 interface ExtensionStoreDashboardProps {
@@ -47,6 +47,12 @@ const ExtensionCard: React.FC<{
                 <h3 className="font-bold text-lg text-slate-100">{extension.name} <span className="text-sm text-slate-400">v{extension.version}</span></h3>
                 <p className="text-xs text-slate-500">by {extension.authorAlias}</p>
                 <p className="text-sm text-slate-300 my-2">{extension.description}</p>
+                 {extension.isInstalled && extension.isNft && (
+                    <div className="flex items-center gap-1.5 text-xs text-purple-300 bg-purple-900/40 border border-purple-700 rounded-full px-2 py-1 w-fit">
+                        <ShieldCheckIcon className="w-3 h-3" />
+                        <span>NFT Provisioned</span>
+                    </div>
+                )}
             </div>
             <div className="flex items-center justify-between mt-3">
                  <div className={`px-2 py-0.5 text-xs font-semibold rounded-full ${extension.pricingModel === 'FREE' ? 'bg-green-600' : 'bg-cyan-600'}`}>
@@ -54,8 +60,8 @@ const ExtensionCard: React.FC<{
                 </div>
                 <button
                     onClick={handleAction}
-                    disabled={!canPurchase}
-                    title={!canPurchase ? "Commerce is not enabled by the administrator." : ""}
+                    disabled={!canPurchase && isPaid}
+                    title={!canPurchase && isPaid ? "Commerce is not enabled by the administrator." : ""}
                     className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
                         extension.isInstalled
                             ? 'bg-red-600 hover:bg-red-700'

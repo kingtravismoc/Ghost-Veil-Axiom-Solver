@@ -1,6 +1,6 @@
-
 import React from 'react';
 import type { MLInsight } from '../types';
+import { BrainCircuitIcon } from './icons';
 
 interface MLInsightDashboardProps {
     insights: MLInsight[];
@@ -15,14 +15,34 @@ const getInsightTypeInfo = (type: MLInsight['type']): { label: string; color: st
     }
 };
 
+const StandardCard: React.FC<{
+    title: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+    className?: string;
+}> = ({ title, icon, children, className = '' }) => (
+    <div className={`bg-slate-800/50 rounded-lg border border-slate-700 flex flex-col ${className}`}>
+        <h2 className="text-lg font-semibold flex items-center gap-2 p-4 border-b border-slate-700 text-slate-300 flex-shrink-0">
+            {icon}
+            {title}
+        </h2>
+        <div className="p-4 flex-grow overflow-y-auto">
+            {children}
+        </div>
+    </div>
+);
+
 const MLInsightDashboard: React.FC<MLInsightDashboardProps> = ({ insights }) => {
     if (insights.length === 0) {
-        return null;
+        return (
+            <StandardCard title="ML Insights & Adjustments" icon={<BrainCircuitIcon className="w-5 h-5 text-slate-400" />}>
+                 <p className="text-center text-slate-400 py-8">No learned adjustments from the AI core yet.</p>
+            </StandardCard>
+        );
     }
 
     return (
-        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <h2 className="text-lg font-semibold mb-3 text-slate-300">ML Insights & Learned Adjustments</h2>
+        <StandardCard title="ML Insights & Adjustments" icon={<BrainCircuitIcon className="w-5 h-5 text-purple-400" />}>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                  {insights.map(insight => {
                      const typeInfo = getInsightTypeInfo(insight.type);
@@ -37,7 +57,7 @@ const MLInsightDashboard: React.FC<MLInsightDashboardProps> = ({ insights }) => 
                      )
                 })}
             </div>
-        </div>
+        </StandardCard>
     );
 };
 
