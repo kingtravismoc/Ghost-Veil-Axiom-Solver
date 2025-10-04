@@ -255,7 +255,7 @@ export interface Extension {
     description: string;
     authorId: string;
     authorAlias: string;
-    authorName: string; // New
+    authorName: string;
     version: string;
     pricingModel: 'FREE' | 'FIXED_PRICE';
     price: number;
@@ -266,11 +266,14 @@ export interface Extension {
     isNft: boolean;
     contractId: string | null;
     icon: string;
-    installDate: string; // New
-    userCount: number; // New
-    githubUrl: string; // New
-    allowExport: boolean; // New
-    isObfuscated: boolean; // New
+    installDate: string;
+    userCount: number;
+    githubUrl: string;
+    allowExport: boolean;
+    isObfuscated: boolean;
+    readme?: string;
+    screenshots?: string[];
+    hasBackgroundFunction?: boolean;
 }
 
 export interface SDKEndpoint {
@@ -341,4 +344,24 @@ export interface ActiveOperation {
     name: string;
     progress: number;
     status: 'in-progress' | 'complete' | 'error';
+}
+
+// New types for Window Management
+export type WindowState = 'open' | 'minimized' | 'maximized';
+export interface OpenExtensionState {
+    id: string;
+    zIndex: number;
+    windowState: WindowState;
+    pos: { x: number; y: number };
+    size: { w: number; h: number };
+}
+
+// New type for Feedback
+export interface Feedback {
+    id: string;
+    timestamp: number;
+    extensionId: string;
+    text: string;
+    status: 'PENDING' | 'REVIEWED';
+    authorId: string;
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { LogEntry, LogType, ActiveOperation, Extension } from '../types';
+import type { LogEntry, LogType, ActiveOperation, Extension, OpenExtensionState } from '../types';
 import { TerminalIcon, ChevronUpIcon, ChevronDownIcon, CubeAltIcon, RadarIcon, UsersIcon, ArrowUpTrayIcon, ShieldCheckIcon } from './icons';
 
 const getLogTypeClass = (type: LogType): string => {
@@ -13,24 +13,25 @@ const getLogTypeClass = (type: LogType): string => {
     }
 }
 
-const getIconForExt = (iconName: string) => {
+const getIconForExt = (iconName: string, className = "w-5 h-5") => {
     switch(iconName) {
-        case 'RadarIcon': return <RadarIcon className="w-5 h-5" />;
-        case 'UsersIcon': return <UsersIcon className="w-5 h-5" />;
-        case 'ArrowUpTrayIcon': return <ArrowUpTrayIcon className="w-5 h-5" />;
-        case 'ShieldCheckIcon': return <ShieldCheckIcon className="w-5 h-5" />;
-        default: return <CubeAltIcon className="w-5 h-5" />;
+        case 'RadarIcon': return <RadarIcon className={className} />;
+        case 'UsersIcon': return <UsersIcon className={className} />;
+        case 'ArrowUpTrayIcon': return <ArrowUpTrayIcon className={className} />;
+        case 'ShieldCheckIcon': return <ShieldCheckIcon className={className} />;
+        default: return <CubeAltIcon className={className} />;
     }
 }
 
 interface FooterProps {
     logEntries: LogEntry[];
     operations: ActiveOperation[];
-    installedExtensions: Extension[];
+    openExtensions: OpenExtensionState[];
+    allExtensions: Extension[];
     onLaunchExtension: (extensionId: string) => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ logEntries, operations, installedExtensions, onLaunchExtension }) => {
+const Footer: React.FC<FooterProps> = ({ logEntries, operations, openExtensions, allExtensions, onLaunchExtension }) => {
     const [isConsoleExpanded, setIsConsoleExpanded] = useState(false);
     const recentLogs = logEntries.slice(-1);
 
@@ -38,14 +39,25 @@ const Footer: React.FC<FooterProps> = ({ logEntries, operations, installedExtens
         <footer className={`fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-sm border-t border-slate-700 text-slate-300 text-sm z-50 transition-all duration-300 ${isConsoleExpanded ? 'h-64' : 'h-14'}`}>
             <div className="h-full flex flex-col">
                 <div className="flex items-center justify-between px-4 h-14 flex-shrink-0">
-                    {/* Left: Extensions */}
+                    {/* Left: Taskbar for open extensions */}
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-slate-400 pr-2 border-r border-slate-700">EXTENSIONS</span>
-                        {installedExtensions.map(ext => (
-                            <button key={ext.id} onClick={() => onLaunchExtension(ext.id)} title={`Launch ${ext.name}`} className="p-2 bg-slate-800/50 hover:bg-slate-700 rounded-md transition-colors">
-                                {getIconForExt(ext.icon)}
-                            </button>
-                        ))}
+                         <span className="text-xs font-semibold text-slate-400 pr-2 border-r border-slate-700">APPS</span>
+                         {openExtensions.map(openExt => {
+                             const extDetails = allExtensions.find(e => e.id === openExt.id);
+                             if (!extDetails) return null;
+                             const isMinimized = openExt.windowState === 'minimized';
+                             return (
+                                 <button
+                                    key={extDetails.id}
+                                    onClick={() => onLaunchExtension(extDetails.id)}
+                                    title={extDetails.name}
+                                    className={`p-2 rounded-md transition-colors relative ${isMinimized ? 'bg-slate-700 hover:bg-slate-600' : 'bg-cyan-600/30 hover:bg-cyan-600/50'}`}
+                                >
+                                    {getIconForExt(extDetails.icon, "w-6 h-6")}
+                                    {!isMinimized && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-1 bg-cyan-400 rounded-t-full"></div>}
+                                 </button>
+                             );
+                         })}
                     </div>
 
                     {/* Middle: Operations */}

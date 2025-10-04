@@ -6,13 +6,14 @@ import { ShieldIcon } from './icons';
 interface ObfuscationLayersProps {
     layers: ObfuscationLayer[];
     isProtected: boolean;
+    isWaveMaskActive: boolean;
 }
 
-const ObfuscationLayers: React.FC<ObfuscationLayersProps> = ({ layers, isProtected }) => {
+const ObfuscationLayers: React.FC<ObfuscationLayersProps> = ({ layers, isProtected, isWaveMaskActive }) => {
     if (!isProtected || layers.length === 0) return null;
 
     return (
-        <div className="bg-gradient-to-br from-green-900/50 via-purple-900/50 to-blue-900/50 rounded-lg p-6 border border-green-500 spectral-pulse">
+        <div className={`bg-gradient-to-br from-green-900/50 via-purple-900/50 to-blue-900/50 rounded-lg p-6 border border-green-500 ${isWaveMaskActive ? 'spectral-pulse' : ''}`}>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-green-300">
                 <ShieldIcon className="w-6 h-6" />
                 Active Obfuscation Layers

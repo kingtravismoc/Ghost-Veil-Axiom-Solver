@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useEffect } from 'react';
 import type { Signal as AppSignal, ScanMode } from '../types';
 
@@ -8,7 +9,7 @@ interface SpectrumAnalyzerProps {
   className?: string;
   activePeers: number;
   isSummaryView?: boolean;
-  onSignalSelect: (signal: AppSignal) => void;
+  onSignalSelect: (signal: AppSignal | null) => void;
   selectedSignal: AppSignal | null;
 }
 
@@ -30,7 +31,10 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
   const canvasHeight = isSummaryView ? 120 : 300;
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isSummaryView || signals.length === 0) return;
+    if (isSummaryView || signals.length === 0) {
+      onSignalSelect(null);
+      return;
+    };
     
     const canvas = event.currentTarget;
     // FIX: Using getBoundingClientRect for robust click coordinate calculation.
@@ -54,6 +58,8 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
     // Select if it's reasonably close
     if (closestSignal && minDistance < (MAX_FREQ / canvas.width) * 10) { // Within 10 pixels
         onSignalSelect(closestSignal);
+    } else {
+        onSignalSelect(null);
     }
   };
 

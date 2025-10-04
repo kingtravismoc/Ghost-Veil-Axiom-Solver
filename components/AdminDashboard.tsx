@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import type { GovApplication, FunctionProtocol } from '../types';
-import { BriefcaseIcon, CodeBracketIcon, ChartBarIcon } from './icons';
-import TokenomicsDashboard from './TokenomicsDashboard'; // New component
-import useSystem from '../hooks/useSystem'; // To get treasury state
+import type { GovApplication, FunctionProtocol, Feedback } from '../types';
+import { BriefcaseIcon, CodeBracketIcon, ChartBarIcon, BrainCircuitIcon } from './icons';
+import TokenomicsDashboard from './TokenomicsDashboard'; 
 
 interface ApplicationsViewProps {
     applications: GovApplication[];
@@ -71,6 +70,38 @@ const FunctionsView: React.FC<FunctionsViewProps> = ({ protocols, onApprove, onR
     );
 };
 
+interface FeedbackViewProps {
+    feedback: Feedback[];
+    onReward: (feedbackId: string) => void;
+    aiSummary: string;
+}
+
+const FeedbackView: React.FC<FeedbackViewProps> = ({ feedback, onReward, aiSummary }) => (
+    <div className="space-y-4">
+        <div className="bg-slate-900/50 p-4 rounded-lg border border-purple-700">
+            <h4 className="font-semibold text-purple-300 flex items-center gap-2"><BrainCircuitIcon className="w-5 h-5" /> AI-Generated Summary</h4>
+            <p className="text-sm text-slate-300 italic mt-1">{aiSummary || "Awaiting sufficient feedback for analysis..."}</p>
+        </div>
+        {feedback.length === 0 ? (
+            <p className="text-slate-400 text-center py-8">No user feedback submitted yet.</p>
+        ) : (
+            feedback.map(item => (
+                <div key={item.id} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs text-slate-500">From: {item.authorId}</p>
+                            <p className="text-xs text-slate-500">Regarding: {item.extensionId}</p>
+                        </div>
+                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-600">{item.status}</span>
+                    </div>
+                    <p className="text-sm text-slate-200 my-2 p-2 bg-slate-800 rounded-md italic">"{item.text}"</p>
+                    <button onClick={() => onReward(item.id)} className="w-full bg-purple-600 hover:bg-purple-700 p-2 rounded-md font-semibold text-sm">Award 10 AGT for Feedback</button>
+                </div>
+            ))
+        )}
+    </div>
+);
+
 
 interface AdminDashboardProps {
     applications: GovApplication[];
@@ -79,8 +110,11 @@ interface AdminDashboardProps {
     functionProtocols: FunctionProtocol[];
     onApproveFunction: (funcId: string) => void;
     onRejectFunction: (funcId: string) => void;
-    treasuryState: any; // Simplified for props drilling
+    treasuryState: any; 
     onUpdateRewards: (allocations: any) => void;
+    feedback: Feedback[];
+    onRewardFeedback: (feedbackId: string) => void;
+    aiFeedbackSummary: string;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
@@ -89,7 +123,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     const tabs = [
         { id: 'applications', label: 'Gov Applications', icon: BriefcaseIcon },
         { id: 'functions', label: 'Function Protocols', icon: CodeBracketIcon },
-        { id: 'tokenomics', label: 'Tokenomics & Treasury', icon: ChartBarIcon }
+        { id: 'tokenomics', label: 'Tokenomics & Treasury', icon: ChartBarIcon },
+        { id: 'feedback', label: 'Feedback Queue', icon: BrainCircuitIcon },
     ];
 
     return (
@@ -108,6 +143,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             {activeTab === 'applications' && <ApplicationsView applications={props.applications} onApprove={props.onApproveApplication} onReject={props.onRejectApplication} />}
             {activeTab === 'functions' && <FunctionsView protocols={props.functionProtocols} onApprove={props.onApproveFunction} onReject={props.onRejectFunction} />}
             {activeTab === 'tokenomics' && <TokenomicsDashboard treasury={props.treasuryState} onUpdateRewards={props.onUpdateRewards} />}
+            {activeTab === 'feedback' && <FeedbackView feedback={props.feedback} onReward={props.onRewardFeedback} aiSummary={props.aiFeedbackSummary} />}
 
         </div>
     );

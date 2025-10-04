@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import useSystem from './hooks/useSystem';
 import Header from './components/Header';
@@ -24,7 +26,7 @@ import ShareModal from './components/ShareModal';
 import GovAgencySignupModal from './components/GovAgencySignupModal';
 import AddNetworkModal from './components/AddNetworkModal';
 import TriggersModal from './components/TriggersModal';
-import ExtensionStoreDashboard from './components/ExtensionStoreDashboard';
+import ExtensionsDashboard from './components/ExtensionsDashboard';
 import DeveloperPortal from './components/DeveloperPortal';
 import PurchaseExtensionModal from './components/PurchaseExtensionModal';
 import WalletModal from './components/WalletModal';
@@ -38,7 +40,8 @@ import WithdrawModal from './components/WithdrawModal';
 import WaveMaskControl from './components/WaveMaskControl';
 import Footer from './components/Footer';
 import ExtensionHost from './components/ExtensionHost';
-import SignalDetailPanel from './components/SignalDetailPanel'; // New
+import SignalDetailPanel from './components/SignalDetailPanel';
+import ExtensionDetailModal from './components/ExtensionDetailModal'; // New
 
 import { P2PNode, Signal, AIConfig, Network, UserProfile, Wallet, CognitiveMetricsState, ActivityEvent, MLInsight, Extension } from './types';
 import { BrainCircuitIcon, XIcon, UsersIcon, ShieldCheckIcon, ActivityIcon, RadarIcon, TerminalIcon, WaveformIcon, CubeIcon } from './components/icons';
@@ -206,7 +209,8 @@ const DashboardView: React.FC<{ system: any }> = ({ system }) => (
                 signals={system.signals}
                 scanMode={system.sdrDevilProps.isMonitoring ? system.sdrDevilProps.scanMode : 'off'}
                 activePeers={system.p2pState.nodes.filter((n: P2PNode) => n.status !== 'OFFLINE').length}
-                onSignalSelect={() => {}}
+                // FIX: Corrected onSignalSelect prop to accept a signal argument to match its type definition.
+                onSignalSelect={(signal) => {}}
                 selectedSignal={null}
             />
         </div>
@@ -214,7 +218,7 @@ const DashboardView: React.FC<{ system: any }> = ({ system }) => (
         <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-hidden">
             {/* Column 1: Controls */}
             <div className="flex flex-col gap-4">
-                <SdrDevilControl {...system.sdrDevilProps} />
+                <SdrDevilControl {...system.sdrDevilProps} isWaveMaskActive={system.isWaveMaskActive} />
                 <WaveMaskControl {...system.waveMaskProps} />
             </div>
 
@@ -229,8 +233,8 @@ const DashboardView: React.FC<{ system: any }> = ({ system }) => (
                           </div>
                      )}
                  </StandardCard>
-                 {system.isProtected && <ObfuscationLayers layers={system.obfuscationLayers} isProtected={system.isProtected} />}
-                 {system.countermeasures.length > 0 && <ActiveCountermeasures countermeasures={system.countermeasures} />}
+                 {system.isProtected && <ObfuscationLayers layers={system.obfuscationLayers} isProtected={system.isProtected} isWaveMaskActive={system.isWaveMaskActive} />}
+                 {system.countermeasures.length > 0 && <ActiveCountermeasures countermeasures={system.countermeasures} isWaveMaskActive={system.isWaveMaskActive} />}
             </div>
 
             {/* Column 3: System & Network */}
@@ -293,13 +297,17 @@ const DevicesView: React.FC<{ system: any }> = ({ system }) => (
 );
 
 const ExtensionsView: React.FC<{ system: any }> = ({ system }) => (
-     <ExtensionStoreDashboard
+     <ExtensionsDashboard
         extensions={system.extensions}
         onInstall={system.installExtension}
         onUninstall={system.uninstallExtension}
         onPurchase={(ext: Extension) => system.setExtensionToPurchase(ext)}
         isCommerceEnabled={system.isCommerceEnabled}
         onExport={system.exportExtension}
+        currentUser={system.currentUser}
+        onViewDetails={(ext: Extension) => system.setViewingExtension(ext)}
+        onLaunch={system.launchExtension}
+        onDeveloperPortalClick={() => system.setActiveTab('System')}
     />
 );
 
@@ -419,10 +427,12 @@ const SystemView: React.FC<{ system: any }> = ({ system }) => {
 // ==============
 const App: React.FC = () => {
     const system = useSystem();
-    const [activeTab, setActiveTab] = useState('Dashboard');
+    // FIX: Tab state is now managed within the useSystem hook.
+    // system.setActiveTab is no longer needed here as it's handled internally.
 
     const renderActiveView = () => {
-        switch (activeTab) {
+        // FIX: Use system.activeTab which is now managed by the useSystem hook.
+        switch (system.activeTab) {
             case 'Dashboard': return <DashboardView system={system} />;
             case 'Spectrum': return <SpectrumView system={system} />;
             case 'Neural': return <NeuralView system={system} />;
@@ -433,8 +443,6 @@ const App: React.FC = () => {
             default: return <DashboardView system={system} />;
         }
     };
-
-    const installedExtensions = system.extensions.filter(ext => system.currentUser.installedExtensions.includes(ext.id));
 
     return (
         <>
@@ -452,15 +460,16 @@ const App: React.FC = () => {
             {system.showAdminSetup && <AdminSetupModal onVerifyGithub={system.verifyGithubToken} onSubmit={system.completeAdminSetup} />}
             {system.showNetworkDetailModal && <NetworkDetailModal network={system.selectedNetwork} nodes={system.p2pState.nodes} onClose={() => system.setShowNetworkDetailModal(false)} />}
             {system.showSignalAnnotationModal && <SignalAnnotationModal signal={system.selectedSignal} onClose={() => system.setShowSignalAnnotationModal(false)} onSave={system.updateSignalAnnotation} />}
-            {system.activeExtensionId && <ExtensionHost extensionId={system.activeExtensionId} system={system} onClose={() => system.setActiveExtensionId(null)} />}
-
-
-            <div className={`bg-slate-900 text-slate-100 min-h-screen font-sans neural-network-bg transition-all duration-500 ${system.isWaveMaskActive ? 'border-4 border-cyan-400 spectral-pulse' : ''}`}>
+            {/* FIX: Correctly access viewingExtension, setViewingExtension, and submitFeedback from the system object. */}
+            {system.viewingExtension && <ExtensionDetailModal extension={system.viewingExtension} onClose={() => system.setViewingExtension(null)} onSubmitFeedback={system.submitFeedback} />}
+            
+            <div className={`bg-slate-900 text-slate-100 min-h-screen font-sans neural-network-bg transition-all duration-500`}>
                 {system.isFork && <ForkWarningBanner />}
                 <Header 
                     status={system.systemStatus}
-                    onTabChange={setActiveTab}
-                    activeTab={activeTab}
+                    // FIX: Use system.setActiveTab and system.activeTab from the useSystem hook.
+                    onTabChange={system.setActiveTab}
+                    activeTab={system.activeTab}
                     userProfile={system.currentUser}
                     onShowAddFriend={() => system.setShowAddFriendModal(true)}
                     onShowShare={() => system.setShowShareModal(true)}
@@ -476,7 +485,25 @@ const App: React.FC = () => {
                     onShowNetworkDetails={() => system.setShowNetworkDetailModal(true)}
                 />
                 
-                <main className="pb-16"> {/* Padding bottom to clear the footer */}
+                <main className="pb-16 relative"> {/* Padding bottom to clear the footer */}
+                    <div className="absolute inset-0 overflow-hidden">
+                        {/* FIX: Correctly access openExtensions from the system object. */}
+                        {system.openExtensions.map((openExt: any) => 
+                            system.extensions.find((e: Extension) => e.id === openExt.id) && openExt.windowState !== 'minimized' && (
+                                <ExtensionHost
+                                    key={openExt.id}
+                                    extension={system.extensions.find((e: Extension) => e.id === openExt.id)!}
+                                    windowState={openExt}
+                                    system={system}
+                                    // FIX: Correctly access window management functions from the system object.
+                                    onClose={() => system.closeExtension(openExt.id)}
+                                    onMinimize={() => system.minimizeExtension(openExt.id)}
+                                    onFocus={() => system.focusExtension(openExt.id)}
+                                    onUpdate={system.updateExtensionWindowState}
+                                />
+                            )
+                        )}
+                    </div>
                     <ViewContainer>
                         {renderActiveView()}
                     </ViewContainer>
@@ -486,8 +513,11 @@ const App: React.FC = () => {
                 <Footer 
                     logEntries={system.logEntries}
                     operations={system.activeOperations}
-                    installedExtensions={installedExtensions}
-                    onLaunchExtension={system.setActiveExtensionId}
+                    // FIX: Correctly access openExtensions from the system object.
+                    openExtensions={system.openExtensions}
+                    allExtensions={system.extensions}
+                    // FIX: Correctly access launchExtension from the system object.
+                    onLaunchExtension={system.launchExtension}
                 />
             </div>
         </>

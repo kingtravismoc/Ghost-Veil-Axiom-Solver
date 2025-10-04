@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PlayIcon, StopIcon, ShieldIcon, ZapIcon, BrainCircuitIcon } from './icons';
 import { InfoTooltip } from './icons';
@@ -20,6 +21,7 @@ interface SdrDevilControlProps {
     isIntelligentScanning: boolean;
     onIntelligentScan: () => void;
     isSafetyValidating: boolean;
+    isWaveMaskActive: boolean;
 }
 
 const scanModeOptions: { value: ScanMode; label: string }[] = [
@@ -39,7 +41,8 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
         isMonitoring, isLoading, isProtected, canActivate,
         scanMode, protectionStrategy, setScanMode, setProtectionStrategy,
         startMonitoring, stopMonitoring, activateProtection, deactivateProtection,
-        activateButtonText, isIntelligentScanning, onIntelligentScan, isSafetyValidating
+        activateButtonText, isIntelligentScanning, onIntelligentScan, isSafetyValidating,
+        isWaveMaskActive
     } = props;
 
     const actionText = isLoading ? 'Processing...' : isMonitoring ? 'Stop Scan' : 'Start Scan';
@@ -91,7 +94,7 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
             </div>
 
             {/* Protection Section */}
-            <div className="space-y-3 p-3 sm:p-4 border border-slate-600 rounded-lg bg-slate-900/30">
+            <div className={`space-y-3 p-3 sm:p-4 border rounded-lg bg-slate-900/30 transition-all duration-300 ${isWaveMaskActive ? 'border-cyan-500 spectral-pulse' : 'border-slate-600'}`}>
                  <label htmlFor="protection-strategy" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                      Countermeasure Strategy (TX/NMethods)
                      <InfoTooltip text="Quantum Noise: Jams signals with unpredictable noise. Dynamic Mimicry: Copies and distorts attacker waveforms. P2P Obfuscation: Uses the peer network to create decentralized interference." />

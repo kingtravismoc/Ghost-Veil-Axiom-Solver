@@ -7,7 +7,8 @@ import type {
     ScanMode, ProtectionStrategy, Sentinel, AIConfig, ActivityEvent, P2PState,
     ImplantedDevice, ImplantedDeviceStatus, UserProfile, GovApplication, Friend, Network,
     SystemStatus, Trigger, Wallet, DeveloperProfile, Extension, Transaction, SystemConfig, OmegaProtocolState, FourDSafetyValidationResult,
-    FunctionProtocol, TreasuryState, RewardAllocation, UserContribution, CognitiveMetricsState, ActiveOperation
+    FunctionProtocol, TreasuryState, RewardAllocation, UserContribution, CognitiveMetricsState, ActiveOperation,
+    OpenExtensionState, Feedback
 } from '../types';
 import { sdrDevilService } from '../services/sdrDevilService';
 import { audioAnalysisService } from '../services/audioAnalysisService';
@@ -119,7 +120,16 @@ const useSystem = () => {
     const [isWaveMaskActive, setIsWaveMaskActive] = useState(false);
     const [isWaveMaskMeasuring, setIsWaveMaskMeasuring] = useState(false);
     const [isIntelligentScanning, setIsIntelligentScanning] = useState(false);
-    const [activeExtensionId, setActiveExtensionId] = useState<string | null>(null);
+    
+    // FIX: Add state for active tab management, previously in App.tsx
+    const [activeTab, setActiveTab] = useState('Dashboard');
+    // FIX: Add state for extension detail modal
+    const [viewingExtension, setViewingExtension] = useState<Extension | null>(null);
+    // FIX: Add state for open extension windows
+    const [openExtensions, setOpenExtensions] = useState<OpenExtensionState[]>([]);
+    // FIX: Add state for user feedback
+    const [feedback, setFeedback] = useState<Feedback[]>([]);
+    const [aiFeedbackSummary, setAiFeedbackSummary] = useState('');
 
 
     const aiRef = useRef<GoogleGenAI | null>(null);
@@ -132,12 +142,12 @@ const useSystem = () => {
     useEffect(() => {
         // Default extensions
         setExtensions([
-// FIX: Added missing properties to conform to the Extension type.
-{ id: 'ext_sdr_plus_plus', name: 'SDR++ Advanced', description: 'Professional-grade interface for deep spectrum analysis.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['startScan', 'stopScan', 'getSignals'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_SDRPP_CORE', icon: 'RadarIcon', installDate: '01/01/2024', userCount: 1337, githubUrl: 'https://github.com/ghostveil/sdr-plus-plus', allowExport: true, isObfuscated: true },
-// FIX: Added missing properties to conform to the Extension type.
-{ id: 'ext_ble_mesh', name: 'BLE Mesh Manager', description: 'Discover, inspect, and manage local Bluetooth Low Energy devices and their GATT attributes.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_BLE_CORE', icon: 'UsersIcon', installDate: '01/01/2024', userCount: 987, githubUrl: 'https://github.com/ghostveil/ble-mesh', allowExport: true, isObfuscated: true },
-// FIX: Added missing properties to conform to the Extension type.
-{ id: 'ext_entropy_rng', name: 'Signal Entropy RNG', description: 'Provides high-quality random numbers generated from spectrum noise, accessible via an API hook.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['getSignals', 'addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_RNG_CORE', icon: 'CubeAltIcon', installDate: '01/01/2024', userCount: 2401, githubUrl: 'https://github.com/ghostveil/entropy-rng', allowExport: false, isObfuscated: true },
+            // FIX: Added missing properties to conform to the Extension type.
+            { id: 'ext_sdr_plus_plus', name: 'SDR++ Advanced', description: 'Professional-grade interface for deep spectrum analysis.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['startScan', 'stopScan', 'getSignals'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_SDRPP_CORE', icon: 'RadarIcon', installDate: '2024-01-01', userCount: 1337, githubUrl: 'https://github.com/ghostveil/sdr-plus-plus', allowExport: true, isObfuscated: true },
+            // FIX: Added missing properties to conform to the Extension type.
+            { id: 'ext_ble_mesh', name: 'BLE Mesh Manager', description: 'Discover, inspect, and manage local Bluetooth Low Energy devices and their GATT attributes.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_BLE_CORE', icon: 'UsersIcon', installDate: '2024-01-01', userCount: 987, githubUrl: 'https://github.com/ghostveil/ble-mesh', allowExport: true, isObfuscated: true },
+            // FIX: Added missing properties to conform to the Extension type.
+            { id: 'ext_entropy_rng', name: 'Signal Entropy RNG', description: 'Provides high-quality random numbers generated from spectrum noise, accessible via an API hook.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['getSignals', 'addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_RNG_CORE', icon: 'CubeAltIcon', installDate: '2024-01-01', userCount: 2401, githubUrl: 'https://github.com/ghostveil/entropy-rng', allowExport: false, isObfuscated: true },
         ]);
 
         try {
@@ -629,7 +639,7 @@ User Request: "${newTriggerData.naturalLanguage}"`;
 
     const submitExtension = (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'>) => {
         if (!currentUser) return;
-        const newExtension: Extension = { ...ext, id: `ext_${Date.now()}`, authorId: currentUser.operatorId, authorAlias: 'You', validationTests: 0, status: 'PENDING', isNft: false, contractId: null };
+        const newExtension: Extension = { ...ext, id: `ext_${Date.now()}`, authorId: currentUser.operatorId, authorAlias: 'You', validationTests: 0, status: 'PENDING', isNft: false, contractId: null, authorName: 'You', installDate: '', userCount: 0, githubUrl: '' };
         setExtensions(prev => [...prev, newExtension]);
         addLog(`Extension "${ext.name}" submitted for validation.`, 'SYSTEM');
     };
@@ -642,6 +652,67 @@ User Request: "${newTriggerData.naturalLanguage}"`;
         addLog(`Successfully purchased ${amount} VLT.`, 'BLOCKCHAIN');
     };
 
+    // FIX: Add function to submit feedback
+    const submitFeedback = (extensionId: string, text: string) => {
+        const newFeedback: Feedback = {
+            id: `fb_${Date.now()}`,
+            timestamp: Date.now(),
+            extensionId,
+            text,
+            status: 'PENDING',
+            authorId: currentUser.operatorId,
+        };
+        setFeedback(prev => [...prev, newFeedback]);
+        addLog(`Feedback submitted for extension ${extensionId}.`, 'SYSTEM');
+    };
+
+    // FIX: Add functions for managing extension windows
+    const focusExtension = (extensionId: string) => {
+        setOpenExtensions(prev => {
+            if (prev.length < 2) return prev;
+            const maxZ = Math.max(...prev.map(e => e.zIndex));
+            return prev.map(ext => ext.id === extensionId ? { ...ext, zIndex: maxZ + 1 } : ext);
+        });
+    };
+    
+    const launchExtension = (extensionId: string) => {
+        const existing = openExtensions.find(ext => ext.id === extensionId);
+        if (existing) {
+            if (existing.windowState === 'minimized') {
+                 setOpenExtensions(prev => {
+                    const maxZ = Math.max(...prev.map(e => e.zIndex), 0);
+                    return prev.map(ext => ext.id === extensionId ? { ...ext, zIndex: maxZ + 1, windowState: 'open' } : ext);
+                });
+            } else {
+                focusExtension(extensionId);
+            }
+        } else {
+            setOpenExtensions(prev => {
+                const maxZ = Math.max(...prev.map(e => e.zIndex), 0);
+                const newExt: OpenExtensionState = {
+                    id: extensionId,
+                    zIndex: maxZ + 1,
+                    windowState: 'open',
+                    pos: { x: 150 + prev.length * 25, y: 150 + prev.length * 25 },
+                    size: { w: 800, h: 600 },
+                };
+                return [...prev, newExt];
+            });
+        }
+    };
+
+    const closeExtension = (extensionId: string) => {
+        setOpenExtensions(prev => prev.filter(ext => ext.id !== extensionId));
+    };
+
+    const minimizeExtension = (extensionId: string) => {
+        setOpenExtensions(prev => prev.map(ext => ext.id === extensionId ? { ...ext, windowState: 'minimized' } : ext));
+    };
+
+    const updateExtensionWindowState = (id: string, updates: Partial<OpenExtensionState>) => {
+        setOpenExtensions(prev => prev.map(ext => ext.id === id ? { ...ext, ...updates } : ext));
+    };
+    
     // Props objects
     const sdrDevilProps = { isMonitoring, isLoading, isProtected, canActivate: canActivateProtection, scanMode, setScanMode, protectionStrategy, setProtectionStrategy, startMonitoring, stopMonitoring, activateProtection, deactivateProtection, activateButtonText: 'Activate Veil', isIntelligentScanning, onIntelligentScan, isSafetyValidating };
     const waveMaskProps = { isActive: isWaveMaskActive, isMeasuring: isWaveMaskMeasuring, onToggle: handleEngageWaveMask };
@@ -653,7 +724,7 @@ User Request: "${newTriggerData.naturalLanguage}"`;
     const bioImplantProps = { devices: implantedDevices, isScanning: isScanningImplants, onScan: scanForImplants, onSelectDevice: setSelectedDeviceForDetail, p2pNodes: p2pState.nodes };
     const deviceDetailProps = { onUpdateStatus: updateDeviceStatus, onHideDevice: hideDevice, isHiding: isHidingDevice, safetyCheckResult };
     const triggerProps = { triggers, onAddTrigger: addTrigger, onToggleTrigger: toggleTrigger, onDeleteTrigger: deleteTrigger, isProcessing: isProcessingTrigger };
-    const adminDashboardProps = { applications: govApplications, onApproveApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'APPROVED'} : a)), onRejectApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'REJECTED'} : a)), functionProtocols, onApproveFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'APPROVED'} : f)), onRejectFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'REJECTED'} : f)), treasuryState, onUpdateRewards: (allocs: RewardAllocation[]) => { if(treasuryState) setTreasuryState({...treasuryState, rewardAllocations: allocs}); } };
+    const adminDashboardProps = { applications: govApplications, onApproveApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'APPROVED'} : a)), onRejectApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'REJECTED'} : a)), functionProtocols, onApproveFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'APPROVED'} : f)), onRejectFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'REJECTED'} : f)), treasuryState, onUpdateRewards: (allocs: RewardAllocation[]) => { if(treasuryState) setTreasuryState({...treasuryState, rewardAllocations: allocs}); }, feedback, aiFeedbackSummary, onRewardFeedback: (id: string) => {} };
 
     const handleAcknowledgeFirstRun = () => { localStorage.setItem('ghost_veil_first_run', 'false'); setIsFirstRun(false); }
     const addFriend = (id: string) => { addLog(`Friend request sent to ${id}.`); setShowAddFriendModal(false); };
@@ -693,11 +764,18 @@ User Request: "${newTriggerData.naturalLanguage}"`;
         friends, govApplications, showAddFriendModal, showShareModal, showGovSignupModal, networks, selectedNetwork, showAddNetworkModal,
         systemStatus, triggers, showTriggersModal, isProcessingTrigger, extensions, developerProfile, wallet, extensionToPurchase, showWalletModal, showBuyTokensModal, showWithdrawModal, systemConfig,
         isCommerceEnabled, showAdminSetup, isSuperAdmin, showNetworkDetailModal, selectedSignal, showSignalAnnotationModal, isClassifyingSignal,
-        functionProtocols, treasuryState, cognitiveMetricsState, activeOperations, isWaveMaskActive, isWaveMaskMeasuring, activeExtensionId,
-        
+        functionProtocols, treasuryState, cognitiveMetricsState, activeOperations, isWaveMaskActive, isWaveMaskMeasuring,
+        // FIX: Return all the new state and functions for tab management, extension details, and window management
+        activeTab, setActiveTab,
+        viewingExtension, setViewingExtension,
+        openExtensions,
+        feedback, aiFeedbackSummary,
+        submitFeedback,
+        launchExtension, closeExtension, minimizeExtension, focusExtension, updateExtensionWindowState,
+
         setAiConfig, setScanMode, setProtectionStrategy, setSelectedDeviceForDetail, setShowAddFriendModal, setShowShareModal, setShowGovSignupModal,
         setSelectedNetwork, setShowAddNetworkModal, setShowTriggersModal, setExtensionToPurchase, setShowWalletModal, setShowBuyTokensModal, setShowWithdrawModal,
-        setShowNetworkDetailModal, setSelectedSignal, setShowSignalAnnotationModal, setActiveExtensionId,
+        setShowNetworkDetailModal, setSelectedSignal, setShowSignalAnnotationModal,
         
         addLog, handleAcknowledgeFirstRun, addFriend, submitGovApplication, addCustomNetwork, purchaseExtension, installExtension, uninstallExtension, submitExtension, buyTokens, 
         completeAdminSetup, verifyGithubToken, classifySignalWithAI, updateSignalAnnotation, submitFunctionProtocol, withdrawTokens, downloadSignalIntel,

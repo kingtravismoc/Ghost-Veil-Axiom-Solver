@@ -8,7 +8,7 @@ interface DeveloperPortalProps {
     developerProfile: DeveloperProfile | null;
     onUpdateDeveloperProfile: (alias: string) => void;
     extensions: Extension[];
-    onExtensionSubmit: (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'|'authorName'|'installDate'|'userCount'|'githubUrl'> & { obfuscationLevel: number }) => void;
+    onExtensionSubmit: (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'|'authorName'|'installDate'|'userCount'|'githubUrl'|'readme'|'screenshots'|'hasBackgroundFunction'> & { obfuscationLevel: number }) => void;
     onFunctionSubmit: (func: Omit<FunctionProtocol, 'id'|'author'|'authorId'|'reviewStatus'|'status'>) => void;
 }
 
@@ -164,7 +164,6 @@ const DeveloperPortal: React.FC<DeveloperPortalProps> = (props) => {
         { id: 'submit_ext', label: 'Submit Extension', icon: ArrowUpTrayIcon },
         { id: 'submit_func', label: 'Submit Function', icon: CodeBracketIcon },
         { id: 'sdk_docs', label: 'SDK & Docs', icon: BookOpenIcon },
-        { id: 'testing_queue', label: 'Testing Queue', icon: FlaskIcon },
     ];
 
     return (
@@ -183,7 +182,6 @@ const DeveloperPortal: React.FC<DeveloperPortalProps> = (props) => {
             {activeTab === 'submit_ext' && <SubmitExtensionView onSubmit={props.onExtensionSubmit} />}
             {activeTab === 'submit_func' && <SubmitFunctionView onSubmit={props.onFunctionSubmit} />}
             {activeTab === 'sdk_docs' && <SDKDocs />}
-            {activeTab === 'testing_queue' && <p className="text-slate-400">Community testing queue will be displayed here.</p>}
         </div>
     );
 };

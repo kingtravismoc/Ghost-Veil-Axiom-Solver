@@ -1,16 +1,18 @@
+
 import React from 'react';
 import { ZapIcon, UsersIcon } from './icons';
 import type { Countermeasure } from '../types';
 
 interface ActiveCountermeasuresProps {
     countermeasures: Countermeasure[];
+    isWaveMaskActive: boolean;
 }
 
-const ActiveCountermeasures: React.FC<ActiveCountermeasuresProps> = ({ countermeasures }) => {
+const ActiveCountermeasures: React.FC<ActiveCountermeasuresProps> = ({ countermeasures, isWaveMaskActive }) => {
     if (countermeasures.length === 0) return null;
 
     return (
-        <div className="bg-slate-800/50 rounded-lg p-6 border border-blue-500/50">
+        <div className={`bg-slate-800/50 rounded-lg p-6 border border-blue-500/50 ${isWaveMaskActive ? 'spectral-pulse' : ''}`}>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-blue-300">
                 <ZapIcon className="w-6 h-6" />
                 Engaged Countermeasures
