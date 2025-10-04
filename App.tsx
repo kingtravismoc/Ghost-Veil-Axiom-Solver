@@ -4,10 +4,8 @@ import useSystem from './hooks/useSystem';
 import Header from './components/Header';
 import SdrDevilControl from './components/SdrDevilControl';
 import DetectedThreats from './components/DetectedThreats';
-import DetectedSignals from './components/DetectedSignals';
 import ObfuscationLayers from './components/ObfuscationLayers';
 import ActiveCountermeasures from './components/ActiveCountermeasures';
-import LogPanel from './components/LogPanel';
 import AxiomTracebackMap from './components/AxiomTracebackMap';
 import Disclaimer from './components/Disclaimer';
 import MLInsightDashboard from './components/MLInsightDashboard';
@@ -34,13 +32,17 @@ import WalletModal from './components/WalletModal';
 import BuyTokensModal from './components/BuyTokensModal';
 import AdminSetupModal from './components/AdminSetupModal';
 import FunctionsDashboard from './components/FunctionsDashboard';
-import LiveSpectrumVisualizer from './components/SpectrumAnalyzer'; // Re-purposed
-import GhostNetTriage from './components/GhostNetTriage'; // Will be used inside NetworkStatus
-import HerdHealthControl from './components/HerdHealthControl'; // Will be used inside NetworkStatus
+import GhostNetTriage from './components/GhostNetTriage';
+// FIX: Removed import for obsolete HerdHealthControl component.
+import SpectrumAnalyzer from './components/SpectrumAnalyzer';
+import SdrppWidget from './components/SdrppWidget';
+import WithdrawModal from './components/WithdrawModal';
+import WaveMaskControl from './components/WaveMaskControl'; // New
+import Footer from './components/Footer'; // New
+import ExtensionHost from './components/ExtensionHost'; // New
 
-// FIX: Import the `Extension` type to resolve a type error on line 405.
 import { P2PNode, Signal, AIConfig, Network, UserProfile, Wallet, CognitiveMetricsState, ActivityEvent, MLInsight, Extension } from './types';
-import { BrainCircuitIcon, XIcon, UsersIcon, ShieldCheckIcon, ActivityIcon, RadarIcon, TerminalIcon, WaveformIcon, TargetIcon, CubeIcon } from './components/icons';
+import { BrainCircuitIcon, XIcon, UsersIcon, ShieldCheckIcon, ActivityIcon, RadarIcon, TerminalIcon, WaveformIcon, CubeIcon } from './components/icons';
 
 
 // ==============
@@ -110,7 +112,6 @@ const SystemSettings: React.FC<{
 const NetworkStatus: React.FC<{ system: any }> = ({ system }) => (
     <div className="space-y-4">
         <GhostNetTriage {...system.ghostNetTriageProps} />
-        <HerdHealthControl {...system.herdHealthProps} />
     </div>
 );
 
@@ -199,32 +200,41 @@ const CognitiveMetrics: React.FC<{ metrics: CognitiveMetricsState }> = ({ metric
 // ==================
 
 const DashboardView: React.FC<{ system: any }> = ({ system }) => (
-    <div className="space-y-6">
-        <div className="h-48 -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
-            <LiveSpectrumVisualizer signals={system.signals} />
+    <div className="h-[calc(100vh-12rem)] flex flex-col gap-4">
+        <div className="flex-shrink-0 -mx-4 sm:-mx-6 lg:-mx-8">
+            <SpectrumAnalyzer
+                isSummaryView={true}
+                signals={system.signals}
+                scanMode={system.sdrDevilProps.isMonitoring ? system.sdrDevilProps.scanMode : 'off'}
+                activePeers={system.p2pState.nodes.filter((n: P2PNode) => n.status !== 'OFFLINE').length}
+            />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1 space-y-6">
+
+        <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-hidden">
+            {/* Column 1: Controls */}
+            <div className="flex flex-col gap-4">
                 <SdrDevilControl {...system.sdrDevilProps} />
+                <WaveMaskControl {...system.waveMaskProps} />
             </div>
-            <div className="lg:col-span-2 space-y-6">
-                {system.isProtected && <ObfuscationLayers layers={system.obfuscationLayers} isProtected={system.isProtected} />}
-                {system.countermeasures.length > 0 && <ActiveCountermeasures countermeasures={system.countermeasures} />}
-                {system.threats.length > 0 ? (
-                    <StandardCard title="AI Threat Assessment" icon={<RadarIcon className="w-5 h-5 text-red-400" />}>
-                        <DetectedThreats {...system.detectedThreatsProps} />
-                    </StandardCard>
-                ) : (
-                    <StandardCard title="AI Threat Assessment" icon={<RadarIcon className="w-5 h-5 text-slate-400" />}>
-                        <p className="text-center text-slate-400 py-8">No active threats detected. System nominal.</p>
-                    </StandardCard>
-                )}
-                <StandardCard title="Operations Log" icon={<TerminalIcon className="w-5 h-5" />}>
-                     <LogPanel logEntries={system.logEntries} />
-                </StandardCard>
+
+            {/* Column 2: Threats & Response */}
+            <div className="flex flex-col gap-4 overflow-hidden">
+                 <StandardCard title="AI Threat Assessment" icon={<RadarIcon className="w-5 h-5 text-red-400" />} className="flex flex-col flex-grow">
+                     {system.threats.length > 0 ? (
+                         <DetectedThreats {...system.detectedThreatsProps} />
+                     ) : (
+                          <div className="h-full flex items-center justify-center">
+                            <p className="text-center text-slate-400 p-4">No active threats detected. System nominal.</p>
+                          </div>
+                     )}
+                 </StandardCard>
+                 {system.isProtected && <ObfuscationLayers layers={system.obfuscationLayers} isProtected={system.isProtected} />}
+                 {system.countermeasures.length > 0 && <ActiveCountermeasures countermeasures={system.countermeasures} />}
             </div>
-            <div className="lg:col-span-1 space-y-6">
-                <StandardCard title="System Metrics" icon={<ActivityIcon className="w-5 h-5 text-cyan-400" />}>
+
+            {/* Column 3: System & Network */}
+            <div className="flex flex-col gap-4 overflow-y-auto pr-2">
+                 <StandardCard title="System Metrics" icon={<ActivityIcon className="w-5 h-5 text-cyan-400" />}>
                     <SystemMetrics 
                         totalSignals={system.totalSignals}
                         threats={system.threats.length}
@@ -232,22 +242,95 @@ const DashboardView: React.FC<{ system: any }> = ({ system }) => (
                         activityEvents={system.activityEvents}
                     />
                 </StandardCard>
-                <StandardCard title="P2P Network" icon={<UsersIcon className="w-5 h-5 text-purple-400" />}>
-                     <NetworkStatus system={system} />
-                </StandardCard>
+                <NetworkStatus system={system} />
             </div>
         </div>
     </div>
 );
 
+// Local component for SpectrumView
+const SdrInterface: React.FC<{ system: any }> = ({ system }) => {
+    const WaveformCanvas: React.FC = () => {
+        const canvasRef = React.useRef<HTMLCanvasElement>(null);
+        React.useEffect(() => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            let frame: number;
+            let t = 0;
+            const draw = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#67e8f9';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let i = 0; i < 200; i++) {
+                    const x = (i / 199) * canvas.width;
+                    const y = canvas.height / 2 + Math.sin(i * 0.1 + t) * Math.cos(i * 0.05 + t) * (canvas.height / 2.2);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                t += 0.02;
+                frame = requestAnimationFrame(draw);
+            };
+            draw();
+            return () => cancelAnimationFrame(frame);
+        }, []);
+        return <canvas ref={canvasRef} width="150" height="150" className="w-full h-full bg-slate-900/50 rounded" />;
+    };
+
+    return (
+        <StandardCard title="Full Spectrum SDR Interface" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />} className="flex-grow">
+            <div className="flex flex-col h-full">
+                <div className="flex-grow">
+                    <SpectrumAnalyzer
+                        signals={system.signals}
+                        scanMode={system.sdrDevilProps.isMonitoring ? system.sdrDevilProps.scanMode : 'off'}
+                        activePeers={system.p2pState.nodes.filter((n: P2PNode) => n.status !== 'OFFLINE').length}
+                    />
+                </div>
+                <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-t border-slate-700 bg-slate-900/30 text-xs">
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Tuner Controls (Simulated)</h4>
+                        <div className="space-y-2">
+                            <p><strong>Frequency:</strong> 145.650 MHz</p>
+                            <p><strong>Bandwidth:</strong> 12.5 kHz</p>
+                            <p><strong>Modulation:</strong> NFM</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Waveform Analysis</h4>
+                        <div className="w-full aspect-square mt-2 max-w-[150px]">
+                             <WaveformCanvas />
+                        </div>
+                    </div>
+                    <div>
+                         <h4 className="text-sm font-semibold mb-2">Signal Legend</h4>
+                         <ul className="space-y-1">
+                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-cyan-400"></div><span>Data Burst</span></li>
+                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-green-400"></div><span>Voice Comms</span></li>
+                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-yellow-400"></div><span>Beacon</span></li>
+                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-red-400"></div><span>Encrypted / Unknown</span></li>
+                         </ul>
+                    </div>
+                </div>
+            </div>
+        </StandardCard>
+    );
+};
+
 const SpectrumView: React.FC<{ system: any }> = ({ system }) => {
     const significantSignals = system.signals.filter((s: Signal) => s.amplitude > 60 || s.snr > 30).slice(-50).reverse();
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-                 <StandardCard title="Significant Signals Log" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />}>
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
+            <div className="lg:col-span-2 flex flex-col">
+                 <SdrInterface system={system} />
+            </div>
+            <div className="lg:col-span-1 flex flex-col gap-6 overflow-y-auto pr-2">
+                <StandardCard title="Significant Signals Log" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />}>
                      {significantSignals.length === 0 && <p className="text-slate-400">No significant signals detected yet. Start a scan.</p>}
-                     <div className="space-y-2 max-h-[75vh] overflow-y-auto pr-2">
+                     <div className="space-y-2">
                         {significantSignals.map((signal: Signal) => (
                             <div key={signal.id} className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
                                 <div className="grid grid-cols-4 gap-2 text-xs mb-2">
@@ -275,12 +358,9 @@ const SpectrumView: React.FC<{ system: any }> = ({ system }) => {
                         ))}
                      </div>
                 </StandardCard>
-            </div>
-            <div className="lg:col-span-1 space-y-6">
-                <StandardCard title="Frequency Catalog" icon={<ActivityIcon className="w-5 h-5 text-cyan-400" />}>
+                <StandardCard title="Frequency Catalog" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />}>
                      <FrequencyCatalog />
                 </StandardCard>
-                <AxiomTracebackMap tracebackData={system.tracebackData} isTracing={system.isTracing} />
             </div>
         </div>
     );
@@ -296,6 +376,16 @@ const NeuralView: React.FC<{ system: any }> = ({ system }) => (
 
 const DevicesView: React.FC<{ system: any }> = ({ system }) => (
     <BioImplantDashboard {...system.bioImplantProps} />
+);
+
+const ExtensionsView: React.FC<{ system: any }> = ({ system }) => (
+     <ExtensionStoreDashboard
+        extensions={system.extensions}
+        onInstall={system.installExtension}
+        onUninstall={system.uninstallExtension}
+        onPurchase={(ext: Extension) => system.setExtensionToPurchase(ext)}
+        isCommerceEnabled={system.isCommerceEnabled}
+    />
 );
 
 const SignalAnnotationModal: React.FC<{
@@ -377,7 +467,6 @@ const SystemView: React.FC<{ system: any }> = ({ system }) => {
     
     const baseTabs = ['Profile', 'Settings', 'Persistence & Safety'];
     const conditionalTabs = [];
-    if (system.isCommerceEnabled) conditionalTabs.push('Extensions');
     if (system.currentUser.role === 'DEVELOPER') conditionalTabs.push('Developer');
     if (system.isSuperAdmin) conditionalTabs.push('Admin');
     const allTabs = [...baseTabs, ...conditionalTabs];
@@ -404,7 +493,6 @@ const SystemView: React.FC<{ system: any }> = ({ system }) => {
                     <ContinuityProtocol sentinels={system.sentinels} doomsdayActive={false} />
                 </div>
             )}
-            {activeTab === 'Extensions' && <ExtensionStoreDashboard extensions={system.extensions} onInstall={system.installExtension} onUninstall={system.uninstallExtension} onPurchase={(ext: Extension) => system.setExtensionToPurchase(ext)} isCommerceEnabled={system.isCommerceEnabled} />}
             {activeTab === 'Developer' && <DeveloperPortal currentUser={system.currentUser} developerProfile={system.developerProfile} onUpdateDeveloperProfile={() => {}} extensions={system.extensions} onExtensionSubmit={system.submitExtension} onFunctionSubmit={system.submitFunctionProtocol} />}
             {activeTab === 'Admin' && <AdminDashboard {...system.adminDashboardProps} />}
         </div>
@@ -425,10 +513,13 @@ const App: React.FC = () => {
             case 'Neural': return <NeuralView system={system} />;
             case 'Devices': return <DevicesView system={system} />;
             case 'Functions': return <FunctionsDashboard protocols={system.functionProtocols} wallet={system.wallet} />;
+            case 'Extensions': return <ExtensionsView system={system} />;
             case 'System': return <SystemView system={system} />;
             default: return <DashboardView system={system} />;
         }
     };
+
+    const installedExtensions = system.extensions.filter(ext => system.currentUser.installedExtensions.includes(ext.id));
 
     return (
         <>
@@ -440,14 +531,16 @@ const App: React.FC = () => {
             {system.showTriggersModal && <TriggersModal onClose={() => system.setShowTriggersModal(false)} {...system.triggerProps} />}
             {system.selectedDeviceForDetail && <DeviceDetailModal device={system.selectedDeviceForDetail} onClose={() => system.setSelectedDeviceForDetail(null)} {...system.deviceDetailProps} />}
             {system.isCommerceEnabled && system.extensionToPurchase && <PurchaseExtensionModal extension={system.extensionToPurchase} wallet={system.wallet} onClose={() => system.setExtensionToPurchase(null)} onConfirm={system.purchaseExtension} />}
-            {system.isCommerceEnabled && system.showWalletModal && <WalletModal wallet={system.wallet} transactions={system.developerProfile?.transactions || []} onClose={() => system.setShowWalletModal(false)} onBuyTokens={() => { system.setShowWalletModal(false); system.setShowBuyTokensModal(true); }} />}
+            {system.isCommerceEnabled && system.showWalletModal && <WalletModal wallet={system.wallet} transactions={system.developerProfile?.transactions || []} onClose={() => system.setShowWalletModal(false)} onBuyTokens={() => { system.setShowWalletModal(false); system.setShowBuyTokensModal(true); }} onWithdraw={() => { system.setShowWalletModal(false); system.setShowWithdrawModal(true); }} />}
             {system.isCommerceEnabled && system.showBuyTokensModal && <BuyTokensModal config={system.systemConfig} onClose={() => system.setShowBuyTokensModal(false)} onConfirm={system.buyTokens} />}
+            {system.isCommerceEnabled && system.showWithdrawModal && <WithdrawModal balance={system.developerProfile?.withdrawableBalance || 0} onClose={() => system.setShowWithdrawModal(false)} onConfirm={system.withdrawTokens} />}
             {system.showAdminSetup && <AdminSetupModal onVerifyGithub={system.verifyGithubToken} onSubmit={system.completeAdminSetup} />}
             {system.showNetworkDetailModal && <NetworkDetailModal network={system.selectedNetwork} nodes={system.p2pState.nodes} onClose={() => system.setShowNetworkDetailModal(false)} />}
             {system.showSignalAnnotationModal && <SignalAnnotationModal signal={system.signalToAnnotate} onClose={() => system.setShowSignalAnnotationModal(false)} onSave={system.updateSignalAnnotation} />}
+            {system.activeExtensionId && <ExtensionHost extensionId={system.activeExtensionId} system={system} onClose={() => system.setActiveExtensionId(null)} />}
 
 
-            <div className="bg-slate-900 text-slate-100 min-h-screen font-sans neural-network-bg">
+            <div className={`bg-slate-900 text-slate-100 min-h-screen font-sans neural-network-bg transition-all duration-500 ${system.isWaveMaskActive ? 'border-4 border-cyan-400 spectral-pulse' : ''}`}>
                 {system.isFork && <ForkWarningBanner />}
                 <Header 
                     status={system.systemStatus}
@@ -468,12 +561,19 @@ const App: React.FC = () => {
                     onShowNetworkDetails={() => system.setShowNetworkDetailModal(true)}
                 />
                 
-                <main>
+                <main className="pb-16"> {/* Padding bottom to clear the footer */}
                     <ViewContainer>
                         {renderActiveView()}
                     </ViewContainer>
                     <Disclaimer />
                 </main>
+                
+                <Footer 
+                    logEntries={system.logEntries}
+                    operations={system.activeOperations}
+                    installedExtensions={installedExtensions}
+                    onLaunchExtension={system.setActiveExtensionId}
+                />
             </div>
         </>
     );

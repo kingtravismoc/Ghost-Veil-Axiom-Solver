@@ -21,6 +21,9 @@ const P2PNetworkTriage: React.FC<P2PNetworkTriageProps> = ({ nodes, selectedNode
     
     const selfNodeIndex = nodes.findIndex(n => n.id === 'self_node');
     const selfPos = selfNodeIndex !== -1 ? nodePositions[selfNodeIndex % nodePositions.length] : { x: 50, y: 50 };
+    const activePeers = nodes.filter(n => n.id !== 'self_node' && n.status !== 'OFFLINE').length;
+    const totalPeers = nodes.length - 1;
+
 
     const getNodeDisplay = (node: P2PNode, index: number) => {
         const isSelected = selectedNodeIds.includes(node.id);
@@ -56,43 +59,61 @@ const P2PNetworkTriage: React.FC<P2PNetworkTriageProps> = ({ nodes, selectedNode
     }
 
     return (
-        <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700 quantum-shield space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-                <UsersIcon className="w-6 h-6 text-purple-400" />
-                P2P Axiom Network
-            </h2>
-            
-            <div className="relative w-full aspect-[4/3] bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-2">
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                    <defs>
-                        <pattern id="smallGrid" width="5" height="5" patternUnits="userSpaceOnUse">
-                            <path d="M 5 0 L 0 0 0 5" fill="none" stroke="rgba(51, 65, 85, 0.5)" strokeWidth="0.5"/>
-                        </pattern>
-                    </defs>
-                    <rect width="100" height="100" fill="url(#smallGrid)" />
-                    <circle cx={selfPos.x} cy={selfPos.y} r="25" fill="none" stroke="rgba(51, 65, 85, 0.7)" strokeWidth="0.5" strokeDasharray="2 2" />
-                    <circle cx={selfPos.x} cy={selfPos.y} r="45" fill="none" stroke="rgba(51, 65, 85, 0.7)" strokeWidth="0.5" strokeDasharray="2 2" />
-                    {nodes.map(getNodeDisplay)}
-                </svg>
-            </div>
-            
-            {macroThreat ? (
-                <div className="p-3 bg-red-900/30 border border-red-500 rounded-lg text-center animate-pulse">
-                    <h3 className="font-bold text-red-300 flex items-center justify-center gap-2"><BrainCircuitIcon className="w-4 h-4" /> Network Consensus: Macro-Threat Detected!</h3>
-                    <p className="text-sm font-semibold text-white">{macroThreat.name}</p>
-                    <p className="text-xs text-slate-300">{macroThreat.objective} ({macroThreat.scope})</p>
-                    <p className="text-xs font-mono text-red-300">Confidence: {(macroThreat.confidence * 100).toFixed(0)}%</p>
+        <StandardCard title="P2P Axiom Network" icon={<UsersIcon className="w-5 h-5 text-purple-400" />} className="flex-grow">
+            <div className="flex flex-col h-full">
+                <div className="relative w-full aspect-[4/3] bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-2">
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                        <defs>
+                            <pattern id="smallGrid" width="5" height="5" patternUnits="userSpaceOnUse">
+                                <path d="M 5 0 L 0 0 0 5" fill="none" stroke="rgba(51, 65, 85, 0.5)" strokeWidth="0.5"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100" height="100" fill="url(#smallGrid)" />
+                        <circle cx={selfPos.x} cy={selfPos.y} r="25" fill="none" stroke="rgba(51, 65, 85, 0.7)" strokeWidth="0.5" strokeDasharray="2 2" />
+                        <circle cx={selfPos.x} cy={selfPos.y} r="45" fill="none" stroke="rgba(51, 65, 85, 0.7)" strokeWidth="0.5" strokeDasharray="2 2" />
+                        {nodes.map(getNodeDisplay)}
+                    </svg>
                 </div>
-            ) : (
-                <p className="text-xs text-slate-400 text-center">
-                    {selectedNodeIds.length > 0 
-                        ? `${selectedNodeIds.length} peer(s) selected for distributed response.`
-                        : "Select peers with correlated threats for P2P action."
-                    }
-                </p>
-            )}
-        </div>
+                
+                 <div className="text-center text-xs text-slate-300 font-mono mt-2">
+                        {activePeers} / {totalPeers} Peers Online
+                </div>
+
+                {macroThreat ? (
+                    <div className="mt-2 p-2 bg-red-900/30 border border-red-500 rounded-lg text-center animate-pulse">
+                        <h3 className="font-bold text-red-300 text-xs flex items-center justify-center gap-1"><BrainCircuitIcon className="w-4 h-4" /> Macro-Threat Detected!</h3>
+                        <p className="text-xs font-semibold text-white">{macroThreat.name}</p>
+                    </div>
+                ) : (
+                    <p className="text-xs text-slate-400 text-center mt-2">
+                        {selectedNodeIds.length > 0 
+                            ? `${selectedNodeIds.length} peer(s) selected.`
+                            : "Network nominal. No macro-threats."
+                        }
+                    </p>
+                )}
+            </div>
+        </StandardCard>
     );
 };
+
+// Re-export StandardCard for local use
+const StandardCard: React.FC<{
+    title: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+    className?: string;
+}> = ({ title, icon, children, className = '' }) => (
+    <div className={`bg-slate-800/50 rounded-lg border border-slate-700 flex flex-col ${className}`}>
+        <h2 className="text-lg font-semibold flex items-center gap-2 p-4 border-b border-slate-700 text-slate-300 flex-shrink-0">
+            {icon}
+            {title}
+        </h2>
+        <div className="p-4 flex-grow overflow-y-auto">
+            {children}
+        </div>
+    </div>
+);
+
 
 export default P2PNetworkTriage;

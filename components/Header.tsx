@@ -34,7 +34,7 @@ const TabButton: React.FC<{ isActive: boolean; onClick: () => void; children: Re
     </button>
 );
 
-const mainTabs = ['Dashboard', 'Spectrum', 'Neural', 'Devices', 'Functions', 'System'];
+const mainTabs = ['Dashboard', 'Spectrum', 'Neural', 'Devices', 'Functions', 'Extensions', 'System'];
 
 const Header: React.FC<HeaderProps> = (props) => {
     const { 
@@ -65,12 +65,12 @@ const Header: React.FC<HeaderProps> = (props) => {
                             <span className="font-mono">{wallet.balance.toFixed(2)} VLT</span>
                         </button>
                     )}
-                     <NetworkDropdown networks={networks} selectedNetwork={selectedNetwork} onSelect={onSelectNetwork} onAddNetwork={onAddNetwork} />
                      {selectedNetwork && (
                          <button onClick={onShowNetworkDetails} title="View Network Details" className="p-2 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-300 hover:text-white transition-colors">
                              <EyeIcon className="w-5 h-5"/>
                          </button>
                      )}
+                     <NetworkDropdown networks={networks} selectedNetwork={selectedNetwork} onSelect={onSelectNetwork} onAddNetwork={onAddNetwork} />
                      <MasterControl status={status} setStatus={() => {}} onOpenTriggers={onOpenTriggers} />
                 </div>
             </div>

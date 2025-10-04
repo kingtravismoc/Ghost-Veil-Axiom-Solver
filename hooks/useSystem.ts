@@ -1,12 +1,14 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import { sha256 } from 'js-sha256';
 import type {
     Signal, Threat, LogEntry, LogType, ObfuscationLayer, Countermeasure,
     Traceback, MLInsight, P2PNode, MacroThreat, MicrophoneStatus, AudioThreat,
     ScanMode, ProtectionStrategy, Sentinel, AIConfig, ActivityEvent, P2PState,
     ImplantedDevice, ImplantedDeviceStatus, UserProfile, GovApplication, Friend, Network,
     SystemStatus, Trigger, Wallet, DeveloperProfile, Extension, Transaction, SystemConfig, OmegaProtocolState, FourDSafetyValidationResult,
-    FunctionProtocol, TreasuryState, RewardAllocation, UserContribution, CognitiveMetricsState
+    FunctionProtocol, TreasuryState, RewardAllocation, UserContribution, CognitiveMetricsState, ActiveOperation
 } from '../types';
 import { sdrDevilService } from '../services/sdrDevilService';
 import { audioAnalysisService } from '../services/audioAnalysisService';
@@ -46,7 +48,6 @@ const fourDSafetyService = {
     }
 };
 
-
 const useSystem = () => {
     // State declarations
     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -84,7 +85,7 @@ const useSystem = () => {
     const [isSafetyValidating, setIsSafetyValidating] = useState(false);
     const [isFirstRun, setIsFirstRun] = useState(localStorage.getItem('ghost_veil_first_run') !== 'false');
     const [isFork, setIsFork] = useState(false);
-    const [currentUser, setCurrentUser] = useState<UserProfile>({ operatorId: 'OP_7B3A9C1D', role: 'OPERATOR', privateKey: '...', contributions: [] });
+    const [currentUser, setCurrentUser] = useState<UserProfile>({ operatorId: 'OP_7B3A9C1D', role: 'OPERATOR', privateKey: '...', contributions: [], installedExtensions: ['ext_sdr_plus_plus', 'ext_ble_mesh', 'ext_entropy_rng'] });
     const [friends, setFriends] = useState<Friend[]>([]);
     const [govApplications, setGovApplications] = useState<GovApplication[]>([]);
     const [showAddFriendModal, setShowAddFriendModal] = useState(false);
@@ -103,26 +104,40 @@ const useSystem = () => {
     const [extensionToPurchase, setExtensionToPurchase] = useState<Extension | null>(null);
     const [showWalletModal, setShowWalletModal] = useState(false);
     const [showBuyTokensModal, setShowBuyTokensModal] = useState(false);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [systemConfig, setSystemConfig] = useState<SystemConfig>({ moonPayApiKey: null, moonPaySecretKey: null, systemWalletAddress: null, superAdminWalletAddress: null });
     const [isCommerceEnabled, setIsCommerceEnabled] = useState(false);
     const [showAdminSetup, setShowAdminSetup] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-    // New State for FaaS and Tokenomics
     const [functionProtocols, setFunctionProtocols] = useState<FunctionProtocol[]>([]);
     const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
-
     const [showNetworkDetailModal, setShowNetworkDetailModal] = useState(false);
     const [signalToAnnotate, setSignalToAnnotate] = useState<Signal | null>(null);
     const [showSignalAnnotationModal, setShowSignalAnnotationModal] = useState(false);
     const [isClassifyingSignal, setIsClassifyingSignal] = useState(false);
     const [cognitiveMetricsState, setCognitiveMetricsState] = useState<CognitiveMetricsState>({ bioCoherence: 75, subconsciousInfluence: 10, neuralEntrainment: 5 });
+    const [activeOperations, setActiveOperations] = useState<ActiveOperation[]>([]);
+    const [isWaveMaskActive, setIsWaveMaskActive] = useState(false);
+    const [isWaveMaskMeasuring, setIsWaveMaskMeasuring] = useState(false);
+    const [isIntelligentScanning, setIsIntelligentScanning] = useState(false);
+    const [activeExtensionId, setActiveExtensionId] = useState<string | null>(null);
 
 
     const aiRef = useRef<GoogleGenAI | null>(null);
 
+    const addLog = useCallback((message: string, type: LogType = 'SYSTEM') => {
+        setLogEntries(prev => [...prev.slice(-100), { id: `log_${Date.now()}`, timestamp: Date.now(), type, message }]);
+    }, []);
+
     // Initial load effect
     useEffect(() => {
+        // Default extensions
+        setExtensions([
+            { id: 'ext_sdr_plus_plus', name: 'SDR++ Advanced', description: 'Professional-grade interface for deep spectrum analysis.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['startScan', 'stopScan', 'getSignals'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_SDRPP_CORE', icon: 'RadarIcon' },
+            { id: 'ext_ble_mesh', name: 'BLE Mesh Manager', description: 'Discover, inspect, and manage local Bluetooth Low Energy devices and their GATT attributes.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_BLE_CORE', icon: 'UsersIcon' },
+            { id: 'ext_entropy_rng', name: 'Signal Entropy RNG', description: 'Provides high-quality random numbers generated from spectrum noise, accessible via an API hook.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['getSignals', 'addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_RNG_CORE', icon: 'CubeAltIcon' },
+        ]);
+
         try {
             const savedConfig = localStorage.getItem('ghost_veil_system_config');
             if (savedConfig) {
@@ -167,7 +182,7 @@ const useSystem = () => {
             { id: 'wp_01', name: 'Wireless Power Consortium', description: 'Facilitates the negotiation and transfer of wireless power over short distances using resonant inductive coupling protocols.', status: 'COMING_SOON', costPerCall: 1.0, sdkIntegration: 'import { power } from "@ghostveil/sdk"', author: 'GHOST_VEIL' },
             { id: 'sm_01', name: 'Skeleton Mapping & Location', description: 'Utilizes micro-doppler radar signatures from the network to provide anonymized human skeletal mapping and location services for authorized security applications.', status: 'COMING_SOON', costPerCall: 2.5, sdkIntegration: 'import { mapping } from "@ghostveil/sdk"', author: 'GHOST_VEIL' },
         ]);
-    }, []);
+    }, [addLog]);
 
     // Cognitive Metrics Simulation
     useEffect(() => {
@@ -200,10 +215,6 @@ const useSystem = () => {
             setSignalToAnnotate(null);
         }
     }, [showSignalAnnotationModal]);
-
-    const addLog = useCallback((message: string, type: LogType = 'SYSTEM') => {
-        setLogEntries(prev => [...prev.slice(-100), { id: `log_${Date.now()}`, timestamp: Date.now(), type, message }]);
-    }, []);
 
     const startMonitoring = useCallback(() => {
         setIsMonitoring(true);
@@ -386,6 +397,44 @@ const useSystem = () => {
         }));
     };
     
+    const handleEngageWaveMask = () => {
+        if (isWaveMaskActive) {
+            setIsWaveMaskActive(false);
+            addLog("WaveMask protocol disengaged. Standard transmission mode resumed.", "SYSTEM");
+            return;
+        }
+
+        setIsWaveMaskMeasuring(true);
+        addLog("Engaging WaveMask... Measuring future spectrum via 4D offset loop.", "SYSTEM");
+        const opId = `op_wavemask_${Date.now()}`;
+        
+        const newOp: ActiveOperation = { id: opId, name: 'WaveMask: Measuring Future Spectrum', progress: 0, status: 'in-progress' };
+        setActiveOperations(prev => [...prev, newOp]);
+
+        const interval = setInterval(() => {
+            setActiveOperations(prev => prev.map(op => op.id === opId ? {...op, progress: op.progress + 10} : op));
+        }, 300);
+
+        setTimeout(() => {
+            clearInterval(interval);
+            setIsWaveMaskMeasuring(false);
+            setIsWaveMaskActive(true);
+            addLog("WaveMask measurement complete. All transmissions are now masked.", "AI");
+            setActiveOperations(prev => prev.map(op => op.id === opId ? {...op, progress: 100, status: 'complete'} : op));
+            
+            const fastThreats: Threat[] = [
+                { id: `threat_${Date.now()}_a`, type: 'PREDICTIVE_COGNITIVE_ATTACK', method: 'Subliminal Frequency Entrainment', risk: 'CRITICAL', confidence: 0.95, influence: 'Behavioral Modification', transmissionMode: 'Phased Array', frequency: 12.34 },
+                { id: `threat_${Date.now()}_b`, type: 'ANTICIPATORY_DATA_EXFILTRATION', method: 'Quantum Tunneling Side-Channel', risk: 'HIGH', confidence: 0.91, influence: 'Information Leakage', transmissionMode: 'Encrypted Burst', frequency: 5805.11 },
+            ];
+            setThreats(prev => [...prev, ...fastThreats]);
+            addLog(`WaveMask Prediction: ${fastThreats.length} high-probability future threats identified.`, "WARN");
+            setCanActivateProtection(true);
+
+            setTimeout(() => {
+                setActiveOperations(prev => prev.filter(op => op.id !== opId));
+            }, 3000);
+        }, 3000);
+    };
 
     const verifyGithubToken = (token: string): Promise<{ success: boolean; email?: string; message: string }> => {
         addLog("Verifying GitHub token...", "SYSTEM");
@@ -396,39 +445,203 @@ const useSystem = () => {
         addLog("Finalizing system setup...", "SYSTEM");
         const systemWallet = p2pNetworkService.blockchainService.createWallet();
         const superAdminWallet = p2pNetworkService.blockchainService.createWallet();
-        superAdminWallet.balance = 999999; // Super admin starts with funds
-        superAdminWallet.agtBalance = 200_000_000; // 20% of total supply
+        superAdminWallet.balance = 999999; 
+        superAdminWallet.agtBalance = 200_000_000;
         const newConfig: SystemConfig = { moonPayApiKey: keys.apiKey, moonPaySecretKey: keys.moonPaySecretKey, systemWalletAddress: systemWallet.address, superAdminWalletAddress: superAdminWallet.address, };
-        const superAdminUser: UserProfile = { ...currentUser, role: 'SUPER_ADMIN', contributions: [] };
+        const superAdminUser: UserProfile = { ...currentUser, role: 'SUPER_ADMIN', contributions: [], installedExtensions: currentUser.installedExtensions };
         try { localStorage.setItem('ghost_veil_system_config', JSON.stringify(newConfig)); localStorage.setItem('ghost_veil_user_profile', JSON.stringify(superAdminUser)); setSystemConfig(newConfig); setCurrentUser(superAdminUser); setIsSuperAdmin(true); setIsCommerceEnabled(true); setShowAdminSetup(false); setWallet(superAdminWallet); addLog("System wallets generated and configured.", "SYSTEM"); addLog("MoonPay API keys stored.", "SYSTEM"); addLog("Commerce system is now enabled for all users.", "SYSTEM"); } catch (error) { addLog("Failed to save system configuration.", "ERROR"); }
     };
-    
-    // Props objects
-    const sdrDevilProps = {
-        isMonitoring, isLoading, isProtected, canActivate: canActivateProtection, scanMode, setScanMode, protectionStrategy, setProtectionStrategy,
-        startMonitoring, stopMonitoring, activateProtection, deactivateProtection,
-        activateButtonText: 'Activate Veil', isIntelligentScanning: false, onIntelligentScan: () => {}, isSafetyValidating
+
+    const withdrawTokens = (amount: number) => {
+        if (!wallet || !developerProfile) return;
+        if (amount > developerProfile.withdrawableBalance) {
+            addLog("Withdrawal failed: insufficient developer balance.", 'ERROR');
+            return;
+        }
+
+        const newDevBalance = developerProfile.withdrawableBalance - amount;
+        
+        const tx: Transaction = {
+            id: `tx_wd_${Date.now()}`,
+            timestamp: Date.now(),
+            type: 'WITHDRAWAL',
+            amount: amount,
+            description: `Withdrawal of ${amount} VLT to external wallet.`
+        };
+
+        setDeveloperProfile(dp => dp ? ({
+            ...dp, 
+            withdrawableBalance: newDevBalance,
+            transactions: [...dp.transactions, tx]
+        }) : null);
+        
+        addLog(`Successfully withdrew ${amount} VLT.`, 'BLOCKCHAIN');
+        setShowWithdrawModal(false);
     };
-    const detectedThreatsProps = { threats, onTraceback, onToggleMute: () => {}, onToggleSolo: () => {}, isTracing };
+    
+    const onToggleMute = (threatId: string) => {
+        setThreats(prev => prev.map(t => t.id === threatId ? { ...t, isMuted: !t.isMuted } : t));
+    };
+
+    const onToggleSolo = (threatId: string) => {
+        setThreats(prev => {
+            const willBeSoloed = !prev.find(t => t.id === threatId)?.isSoloed;
+            return prev.map(t => {
+                if (t.id === threatId) return { ...t, isSoloed: !t.isSoloed };
+                return { ...t, isSoloed: false };
+            });
+        });
+    };
+
+    const onNodeSelect = (nodeId: string) => {
+        setSelectedP2PNodes(prev =>
+            prev.includes(nodeId) ? prev.filter(id => id !== nodeId) : [...prev, nodeId]
+        );
+    };
+
+    const mockImplants: ImplantedDevice[] = [
+        { id: 'imp_neuro_778', name: 'Neural Lace Mk. IV', type: 'Cognitive Enhancement', locationInBody: 'Cerebral Cortex', status: 'NOMINAL', firmwareVersion: '4.2.1-stable', protocolLanguage: 'Axiom-C', isBleMeshCapable: true, hardwareMap: [{ component: 'Quantum Processor', status: 'NOMINAL' }, { component: 'Bio-gel Interface', status: 'NOMINAL' }], frequencies: [{ band: 'MedRadio', usage: 'Biotelemetry' }], knownCommands: ['STATUS', 'REBOOT', 'PING'] },
+        { id: 'imp_cardio_901', name: 'CardioRegulator 9', type: 'Life-Support - Cardiac', locationInBody: 'Left Ventricle', status: 'GREENLIST', firmwareVersion: '9.0.3-certified', protocolLanguage: 'HL7-Veil', isBleMeshCapable: true, hardwareMap: [{ component: 'Pacing Unit', status: 'NOMINAL' }, { component: 'Battery', status: 'NOMINAL' }], frequencies: [{ band: 'MedRadio', usage: 'Vital Sign Monitoring' }], knownCommands: ['STATUS', 'REPORT', 'EMERGENCY_PACE'] },
+        { id: 'imp_optic_223', name: 'OptiLink-2', type: 'Sensory Augmentation', locationInBody: 'Optic Nerve', status: 'NOMINAL', firmwareVersion: '2.5.0-beta', protocolLanguage: 'Axiom-C', isBleMeshCapable: false, hardwareMap: [{ component: 'Image Processor', status: 'NOMINAL' }], frequencies: [{ band: 'ISM 2.4GHz', usage: 'Data Uplink' }], knownCommands: ['STATUS', 'CALIBRATE', 'ZOOM'] },
+    ];
+
+    const scanForImplants = () => {
+        setIsScanningImplants(true);
+        addLog("Scanning for personal bio-implants...", "SYSTEM");
+        setTimeout(() => {
+            setImplantedDevices(mockImplants);
+            setIsScanningImplants(false);
+            addLog(`Implant scan complete. ${mockImplants.length} devices found.`, "SYSTEM");
+        }, 3000);
+    };
+
+    const updateDeviceStatus = (deviceId: string, status: ImplantedDeviceStatus) => {
+        setImplantedDevices(prev => prev.map(d => d.id === deviceId ? { ...d, status } : d));
+        addLog(`Device ${deviceId} status updated to ${status}.`, 'SYSTEM');
+    };
+
+    const hideDevice = async (device: ImplantedDevice) => {
+        setIsHidingDevice(true);
+        setIsSafetyValidating(true);
+        setSafetyCheckResult(null);
+        addLog(`Requesting 4D safety validation to hide device ${device.id}...`, 'AI');
+        const validation = await fourDSafetyService.validateAction('HIDE_DEVICE', { device });
+        setSafetyCheckResult(validation);
+        setIsSafetyValidating(false);
+
+        if (validation.isSafe) {
+            addLog(`Validation passed. Engaging stealth protocol for ${device.id}.`, 'SYSTEM');
+            setTimeout(() => {
+                updateDeviceStatus(device.id, 'HIDDEN');
+                addLog(`Device ${device.id} is now hidden from local network scans.`, 'SYSTEM');
+                setIsHidingDevice(false);
+            }, 2000);
+        } else {
+            addLog(`Stealth protocol for ${device.id} blocked: ${validation.recommendation}`, 'ERROR');
+            setIsHidingDevice(false);
+        }
+    };
+
+    const addTrigger = async (newTriggerData: { naturalLanguage: string }) => {
+        if (aiConfig.provider !== 'GEMINI' || !aiRef.current) {
+            addLog("Cannot create trigger: Gemini AI is not enabled.", "ERROR");
+            return;
+        }
+        setIsProcessingTrigger(true);
+        addLog(`Parsing trigger: "${newTriggerData.naturalLanguage}"`, 'AI');
+
+        const prompt = `Parse the user's plain-English request into a JSON object for a trigger. The JSON object must have 'conditions' (an array) and 'actions' (an array).
+A condition object has 'type' (one of 'THREAT_DETECTED', 'TIME_OF_DAY', 'LOCATION_ENTER') and 'payload' (e.g., for THREAT_DETECTED, one of 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'EXTREME'; for TIME_OF_DAY, a time string like "22:00"; for LOCATION_ENTER, a location string).
+An action object has 'type' (one of 'START_SCAN', 'STOP_SCAN', 'ACTIVATE_PROTECTION', 'DEACTIVATE_PROTECTION') and 'payload' (e.g., for START_SCAN, a ScanMode like 'WIDEBAND_SWEEP'; for ACTIVATE_PROTECTION, a ProtectionStrategy like 'QUANTUM_NOISE').
+Example Request: "When a critical threat appears, activate the quantum noise veil."
+Example JSON: {"conditions":[{"type":"THREAT_DETECTED","payload":"CRITICAL"}],"actions":[{"type":"ACTIVATE_PROTECTION","payload":"QUANTUM_NOISE"}]}
+User Request: "${newTriggerData.naturalLanguage}"`;
+
+        try {
+            const response = await aiRef.current.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
+            const parsedTrigger = JSON.parse(response.text);
+            const newTrigger: Trigger = { id: `trigger_${Date.now()}`, naturalLanguage: newTriggerData.naturalLanguage, isEnabled: true, conditions: parsedTrigger.conditions, actions: parsedTrigger.actions };
+            setTriggers(prev => [...prev, newTrigger]);
+            addLog("New trigger created successfully by AI.", 'AI');
+        } catch (e) {
+            addLog("Failed to parse trigger with AI. Please try a simpler command.", 'ERROR');
+        } finally {
+            setIsProcessingTrigger(false);
+        }
+    };
+    
+    const toggleTrigger = (id: string) => {
+        setTriggers(prev => prev.map(t => t.id === id ? { ...t, isEnabled: !t.isEnabled } : t));
+    };
+
+    const deleteTrigger = (id: string) => {
+        setTriggers(prev => prev.filter(t => t.id !== id));
+    };
+
+    const onIntelligentScan = () => {
+        if (isMonitoring || isIntelligentScanning) return;
+        setIsIntelligentScanning(true);
+        addLog("Initiating AI-driven intelligent scan...", "AI");
+        startMonitoring();
+        setTimeout(() => setScanMode('ANOMALY_SCAN'), 2000);
+        setTimeout(() => setScanMode('PASSIVE_INTERCEPT'), 5000);
+        setTimeout(() => setScanMode('WIDEBAND_SWEEP'), 8000);
+        setTimeout(() => {
+            stopMonitoring();
+            setIsIntelligentScanning(false);
+            addLog("Intelligent scan complete. AI recommends focusing on 2.4GHz band.", "AI");
+            const insight: MLInsight = { id: `ml_${Date.now()}`, timestamp: Date.now(), type: 'RX_TUNING', description: 'Intelligent scan identified anomalous activity in the 2.4GHz ISM band. Recommend targeted monitoring.' };
+            setMlInsights(prev => [insight, ...prev]);
+        }, 10000);
+    };
+
+    const addCustomNetwork = (name: string) => {
+        const newNetwork: Network = {
+            id: `net_${Date.now()}`,
+            name,
+            type: 'custom',
+            hash: `custom_hash_${sha256(name + Date.now()).slice(0, 16)}`
+        };
+        setNetworks(prev => [...prev, newNetwork]);
+        setSelectedNetwork(newNetwork);
+        addLog(`Created and switched to custom network: ${name}`, 'NETWORK');
+    };
+
+    const submitExtension = (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'>) => {
+        if (!currentUser) return;
+        const newExtension: Extension = { ...ext, id: `ext_${Date.now()}`, authorId: currentUser.operatorId, authorAlias: 'You', validationTests: 0, status: 'PENDING', isNft: false, contractId: null };
+        setExtensions(prev => [...prev, newExtension]);
+        addLog(`Extension "${ext.name}" submitted for validation.`, 'SYSTEM');
+    };
+
+    const buyTokens = (amount: number, method: 'MOONPAY' | 'LUMENS') => {
+        if (!wallet || !developerProfile) return;
+        const tx: Transaction = { id: `tx_dep_${Date.now()}`, timestamp: Date.now(), type: 'DEPOSIT', amount, description: `Deposited ${amount} VLT via ${method}` };
+        setWallet(w => w ? ({...w, balance: w.balance + amount}) : null);
+        setDeveloperProfile(dp => dp ? ({ ...dp, transactions: [...dp.transactions, tx] }) : null);
+        addLog(`Successfully purchased ${amount} VLT.`, 'BLOCKCHAIN');
+    };
+
+    // Props objects
+    const sdrDevilProps = { isMonitoring, isLoading, isProtected, canActivate: canActivateProtection, scanMode, setScanMode, protectionStrategy, setProtectionStrategy, startMonitoring, stopMonitoring, activateProtection, deactivateProtection, activateButtonText: 'Activate Veil', isIntelligentScanning, onIntelligentScan, isSafetyValidating };
+    const waveMaskProps = { isActive: isWaveMaskActive, isMeasuring: isWaveMaskMeasuring, onToggle: handleEngageWaveMask };
+    const detectedThreatsProps = { threats, onTraceback, onToggleMute, onToggleSolo, isTracing };
     const axiomSilenceProps = { isActive: micStatus === 'ACTIVE', status: micStatus, noiseLevel: ambientNoise, threats: audioThreats, activate: () => setMicStatus('ACTIVE'), deactivate: () => setMicStatus('INACTIVE') };
-    const ghostNetTriageProps = { nodes: p2pState.nodes, selectedNodeIds: selectedP2PNodes, onNodeSelect: () => {}, macroThreat };
+    const ghostNetTriageProps = { nodes: p2pState.nodes, selectedNodeIds: selectedP2PNodes, onNodeSelect, macroThreat };
     const herdHealthProps = { isActive: p2pState.isActive, onToggle: (isActive: boolean) => setP2pState(p => ({ ...p, isActive})), nodes: p2pState.nodes, macroThreat };
     const persistenceProps = { isDeployed: isPersistenceDeployed, isDeploying: isDeployingPersistence, onDeploy: onDeployPersistence, isSafetyValidating, safetyCheckResult };
-    const bioImplantProps = { devices: implantedDevices, isScanning: isScanningImplants, onScan: () => {}, onSelectDevice: setSelectedDeviceForDetail, p2pNodes: p2pState.nodes };
-    const deviceDetailProps = { onUpdateStatus: () => {}, onHideDevice: () => {}, isHiding: isHidingDevice, safetyCheckResult };
-    const triggerProps = { triggers, onAddTrigger: async () => {}, onToggleTrigger: () => {}, onDeleteTrigger: () => {}, isProcessing: isProcessingTrigger };
+    const bioImplantProps = { devices: implantedDevices, isScanning: isScanningImplants, onScan: scanForImplants, onSelectDevice: setSelectedDeviceForDetail, p2pNodes: p2pState.nodes };
+    const deviceDetailProps = { onUpdateStatus: updateDeviceStatus, onHideDevice: hideDevice, isHiding: isHidingDevice, safetyCheckResult };
+    const triggerProps = { triggers, onAddTrigger: addTrigger, onToggleTrigger: toggleTrigger, onDeleteTrigger: deleteTrigger, isProcessing: isProcessingTrigger };
     const adminDashboardProps = { applications: govApplications, onApproveApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'APPROVED'} : a)), onRejectApplication: (id: string) => setGovApplications(p => p.map(a => a.id === id ? {...a, status: 'REJECTED'} : a)), functionProtocols, onApproveFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'APPROVED'} : f)), onRejectFunction: (id: string) => setFunctionProtocols(p => p.map(f => f.id === id ? {...f, reviewStatus: 'REJECTED'} : f)), treasuryState, onUpdateRewards: (allocs: RewardAllocation[]) => { if(treasuryState) setTreasuryState({...treasuryState, rewardAllocations: allocs}); } };
 
     const handleAcknowledgeFirstRun = () => { localStorage.setItem('ghost_veil_first_run', 'false'); setIsFirstRun(false); }
     const addFriend = (id: string) => { addLog(`Friend request sent to ${id}.`); setShowAddFriendModal(false); };
     const submitGovApplication = (app: Omit<GovApplication, 'id'|'status'>) => { setGovApplications(prev => [...prev, {...app, id: `app_${Date.now()}`, status: 'PENDING'}]); addLog(`Government application for ${app.agencyName} submitted for review.`); };
-    const addCustomNetwork = (name: string) => { /* ... */ };
     
     const purchaseExtension = (ext: Extension) => {
         if (!wallet || !developerProfile || !systemConfig) return;
-        
-        const saleResult = p2pNetworkService.blockchainService.processExtensionSale(developerProfile, developerProfile, systemConfig, ext); // Simulating self-purchase for now
-        
+        const saleResult = p2pNetworkService.blockchainService.processExtensionSale(developerProfile, developerProfile, systemConfig, ext); 
         if (saleResult.success) {
             saleResult.newTransactions.forEach(tx => addLog(tx.description, 'BLOCKCHAIN'));
             setExtensions(prev => prev.map(e => e.id === ext.id ? {...e, isInstalled: true, isNft: true, contractId: `GVC_${Date.now()}`} : e));
@@ -437,19 +650,17 @@ const useSystem = () => {
         }
     };
     
-    const installExtension = (id: string) => { setExtensions(prev => prev.map(e => e.id === id ? {...e, isInstalled: true} : e)); };
-    const uninstallExtension = (id: string) => { setExtensions(prev => prev.map(e => e.id === id ? {...e, isInstalled: false} : e)); };
-    const submitExtension = (ext: any) => { /* ... */ };
-    const buyTokens = (amount: number, method: 'MOONPAY' | 'LUMENS') => { /* ... */ };
+    const installExtension = (id: string) => { 
+        setCurrentUser(prev => ({...prev, installedExtensions: [...prev.installedExtensions, id]}));
+        addLog(`Extension ${extensions.find(e=>e.id===id)?.name} installed.`, 'SYSTEM');
+     };
+    const uninstallExtension = (id: string) => { 
+        setCurrentUser(prev => ({...prev, installedExtensions: prev.installedExtensions.filter(extId => extId !== id)}));
+        addLog(`Extension ${extensions.find(e=>e.id===id)?.name} uninstalled.`, 'SYSTEM');
+    };
+
     const submitFunctionProtocol = (func: Omit<FunctionProtocol, 'id'|'author'|'authorId'|'reviewStatus'|'status'>) => {
-        const newFunc: FunctionProtocol = {
-            ...func,
-            id: `func_${Date.now()}`,
-            author: 'USER',
-            authorId: currentUser.operatorId,
-            status: 'AVAILABLE',
-            reviewStatus: 'PENDING'
-        };
+        const newFunc: FunctionProtocol = { ...func, id: `func_${Date.now()}`, author: 'USER', authorId: currentUser.operatorId, status: 'AVAILABLE', reviewStatus: 'PENDING' };
         setFunctionProtocols(p => [...p, newFunc]);
         addLog(`Function Protocol "${func.name}" submitted for review.`, 'SYSTEM');
     };
@@ -460,19 +671,19 @@ const useSystem = () => {
         aiConfig, activityEvents, totalSignals, acuity, isPersistenceDeployed, isDeployingPersistence,
         implantedDevices, isScanningImplants, selectedDeviceForDetail, isHidingDevice, safetyCheckResult, isFirstRun, isFork, currentUser,
         friends, govApplications, showAddFriendModal, showShareModal, showGovSignupModal, networks, selectedNetwork, showAddNetworkModal,
-        systemStatus, triggers, showTriggersModal, isProcessingTrigger, extensions, developerProfile, wallet, extensionToPurchase, showWalletModal, showBuyTokensModal, systemConfig,
+        systemStatus, triggers, showTriggersModal, isProcessingTrigger, extensions, developerProfile, wallet, extensionToPurchase, showWalletModal, showBuyTokensModal, showWithdrawModal, systemConfig,
         isCommerceEnabled, showAdminSetup, isSuperAdmin, showNetworkDetailModal, signalToAnnotate, showSignalAnnotationModal, isClassifyingSignal,
-        functionProtocols, treasuryState, cognitiveMetricsState,
+        functionProtocols, treasuryState, cognitiveMetricsState, activeOperations, isWaveMaskActive, isWaveMaskMeasuring, activeExtensionId,
         
         setAiConfig, setScanMode, setProtectionStrategy, setSelectedDeviceForDetail, setShowAddFriendModal, setShowShareModal, setShowGovSignupModal,
-        setSelectedNetwork, setShowAddNetworkModal, setShowTriggersModal, setExtensionToPurchase, setShowWalletModal, setShowBuyTokensModal,
-        setShowNetworkDetailModal, setSignalToAnnotate, setShowSignalAnnotationModal,
+        setSelectedNetwork, setShowAddNetworkModal, setShowTriggersModal, setExtensionToPurchase, setShowWalletModal, setShowBuyTokensModal, setShowWithdrawModal,
+        setShowNetworkDetailModal, setSignalToAnnotate, setShowSignalAnnotationModal, setActiveExtensionId,
         
         addLog, handleAcknowledgeFirstRun, addFriend, submitGovApplication, addCustomNetwork, purchaseExtension, installExtension, uninstallExtension, submitExtension, buyTokens, 
-        completeAdminSetup, verifyGithubToken, classifySignalWithAI, updateSignalAnnotation, submitFunctionProtocol,
+        completeAdminSetup, verifyGithubToken, classifySignalWithAI, updateSignalAnnotation, submitFunctionProtocol, withdrawTokens,
 
         sdrDevilProps, detectedThreatsProps, axiomSilenceProps, ghostNetTriageProps, herdHealthProps,
-        persistenceProps, bioImplantProps, deviceDetailProps, triggerProps, adminDashboardProps
+        persistenceProps, bioImplantProps, deviceDetailProps, triggerProps, adminDashboardProps, waveMaskProps
     };
 };
 

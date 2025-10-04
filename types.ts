@@ -179,6 +179,7 @@ export interface UserProfile {
     role: UserRole;
     privateKey: string; // simulated
     contributions: UserContribution[];
+    installedExtensions: string[]; // List of extension IDs
 }
 
 export interface Friend {
@@ -205,7 +206,7 @@ export interface Network {
     hash: string; // app hash associated with this network
 }
 
-export type SystemStatus = 'OFF' | 'ACTIVE_MONITORING' | 'PROTECTION_ACTIVE' | 'INTELLIGENT_SCAN';
+export type SystemStatus = 'OFF' | 'ACTIVE_MONITORING' | 'PROTECTION_ACTIVE' | 'INTELLIGENT_SCAN' | 'WAVEMASK_ACTIVE';
 
 export interface TriggerAction {
     type: 'START_SCAN' | 'STOP_SCAN' | 'ACTIVATE_PROTECTION' | 'DEACTIVATE_PROTECTION';
@@ -262,6 +263,7 @@ export interface Extension {
     status: 'PENDING' | 'TESTING' | 'PUBLISHED' | 'REJECTED';
     isNft: boolean;
     contractId: string | null;
+    icon: string;
 }
 
 export interface SDKEndpoint {
@@ -324,4 +326,11 @@ export interface CognitiveMetricsState {
     bioCoherence: number;
     subconsciousInfluence: number;
     neuralEntrainment: number;
+}
+
+export interface ActiveOperation {
+    id: string;
+    name: string;
+    progress: number;
+    status: 'in-progress' | 'complete' | 'error';
 }

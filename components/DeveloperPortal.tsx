@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { UserProfile, DeveloperProfile, Extension, Transaction, FunctionProtocol } from '../types';
 import { CodeBracketIcon, ChartBarIcon, BookOpenIcon, ArrowUpTrayIcon, FlaskIcon, StoreIcon } from './icons';
@@ -71,6 +72,7 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
     const [description, setDescription] = useState('');
     const [price, setPrice] = useState(0);
     const [isFree, setIsFree] = useState(true);
+    const [icon, setIcon] = useState('CubeAltIcon');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -80,8 +82,9 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
             price: isFree ? 0 : Number(price),
             isInstalled: false,
             requiredEndpoints: [], // This would be parsed from code in a real scenario
+            icon,
         });
-        setName(''); setVersion('1.0.0'); setDescription(''); setPrice(0); setIsFree(true);
+        setName(''); setVersion('1.0.0'); setDescription(''); setPrice(0); setIsFree(true); setIcon('CubeAltIcon');
     };
 
     return (
@@ -90,6 +93,7 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
             <input type="text" placeholder="Extension Name" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
             <input type="text" placeholder="Version (e.g., 1.0.0)" value={version} onChange={e => setVersion(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
             <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" rows={3} required />
+            <input type="text" placeholder="Icon Name (e.g., RadarIcon, CubeAltIcon)" value={icon} onChange={e => setIcon(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
             <div className="flex items-center gap-4">
                  <label className="flex items-center gap-2"><input type="checkbox" checked={isFree} onChange={e => setIsFree(e.target.checked)} /> Free</label>
                 {!isFree && <input type="number" placeholder="Price (VLT)" value={price} onChange={e => setPrice(Number(e.target.value))} className="bg-slate-800 p-2 rounded border border-slate-600 w-32" />}

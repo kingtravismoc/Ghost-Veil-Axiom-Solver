@@ -7,7 +7,7 @@ interface WalletModalProps {
     wallet: Wallet | null;
     transactions: Transaction[];
     onBuyTokens: () => void;
-    // onWithdraw: () => void; // Future implementation
+    onWithdraw: () => void;
 }
 
 const TransactionItem: React.FC<{ tx: Transaction }> = ({ tx }) => {
@@ -39,7 +39,7 @@ const TransactionItem: React.FC<{ tx: Transaction }> = ({ tx }) => {
 };
 
 
-const WalletModal: React.FC<WalletModalProps> = ({ onClose, wallet, transactions, onBuyTokens }) => {
+const WalletModal: React.FC<WalletModalProps> = ({ onClose, wallet, transactions, onBuyTokens, onWithdraw }) => {
     if (!wallet) return null;
 
     return (
@@ -71,7 +71,7 @@ const WalletModal: React.FC<WalletModalProps> = ({ onClose, wallet, transactions
                     </div>
                      <div className="grid grid-cols-2 gap-2">
                         <button onClick={onBuyTokens} className="w-full bg-green-600 hover:bg-green-700 p-3 rounded-lg font-semibold">Buy VLT</button>
-                        <button disabled className="w-full bg-slate-600 p-3 rounded-lg font-semibold disabled:opacity-50 cursor-not-allowed">Withdraw VLT</button>
+                        <button onClick={onWithdraw} className="w-full bg-cyan-600 hover:bg-cyan-700 p-3 rounded-lg font-semibold">Withdraw VLT</button>
                     </div>
 
                     <div>
