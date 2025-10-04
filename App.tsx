@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Signal, Threat, Countermeasure, ObfuscationLayer, SystemStatus, ScanMode, ProtectionStrategy, AudioThreat, MicrophoneStatus, LogEntry, LogType, Traceback, MacroThreat, AIConfig, P2PState, MLInsight, OmegaProtocolState } from './types';
+import type { Signal, Threat, Countermeasure, ObfuscationLayer, SystemStatus, ScanMode, ProtectionStrategy, AudioThreat, MicrophoneStatus, LogEntry, LogType, Traceback, MacroThreat, AIConfig, P2PState, MLInsight, OmegaProtocolState, UserFrequencyBlock } from './types';
 import { sdrDevilService } from './services/sdrDevilService';
 import { audioAnalysisService } from './services/audioAnalysisService';
 import { p2pNetworkService } from './services/p2pNetworkService';
@@ -17,9 +17,10 @@ import ActiveCountermeasures from './components/ActiveCountermeasures';
 import Disclaimer from './components/Disclaimer';
 import LogPanel from './components/LogPanel';
 import AxiomTracebackMap from './components/AxiomTracebackMap';
-import AIConfigControl from './components/AIConfigControl';
-import MLInsightDashboard from './components/MLInsightDashboard';
+import AIConfigStrip from './components/AIConfigStrip';
+import SystemDashboard from './components/SystemDashboard';
 import ContinuityProtocol from './components/ContinuityProtocol';
+import FrequencySafetyControl from './components/FrequencySafetyControl';
 
 declare global {
     interface Window {
@@ -30,6 +31,10 @@ declare global {
 
 
 const App: React.FC = () => {
+    // A constant to control the visibility of the high-level failsafe protocol.
+    // Set this to true in source for deployments that require it.
+    const SHOW_CONTINUITY_PROTOCOL = false;
+
     const [systemStatus, setSystemStatus] = useState<SystemStatus>('CONNECTING');
     const [sdrConnected, setSdrConnected] = useState<boolean>(false);
     const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
@@ -57,10 +62,14 @@ const App: React.FC = () => {
 
     const [aiConfig, setAiConfig] = useState<AIConfig>({ provider: 'LOCAL_SIMULATED', apiKey: '' });
     const [aiClient, setAiClient] = useState<any | null>({}); // Start with simulation client
+    const [showAIConfigStrip, setShowAIConfigStrip] = useState<boolean>(true);
 
     const [mlAcuity, setMlAcuity] = useState<number>(0);
     const [mlInsights, setMlInsights] = useState<MLInsight[]>([]);
     const [totalSignalsProcessed, setTotalSignalsProcessed] = useState<number>(0);
+
+    const [userFrequencyBlocks, setUserFrequencyBlocks] = useState<UserFrequencyBlock[]>([]);
+    const [isProcessingFrequency, setIsProcessingFrequency] = useState<boolean>(false);
 
     const monitorIntervalRef = useRef<number | null>(null);
     const audioIntervalRef = useRef<number | null>(null);
@@ -156,6 +165,7 @@ const App: React.FC = () => {
         setAiClient(null); // Clear previous client
 
         if (newConfig.provider === 'GEMINI') {
+            setShowAIConfigStrip(false);
             try {
                 if (!process.env.API_KEY) {
                     throw new Error("API_KEY environment variable not set.");
@@ -480,6 +490,78 @@ const App: React.FC = () => {
         }
     }, [detectedThreats, addLogEntry, aiClient, aiConfig]);
 
+    const handleAddFrequencyBlock = useCallback(async (freq: number, bandwidth: number, title: string, summary: string) => {
+        setIsProcessingFrequency(true);
+        addLogEntry(`4D Safety Axiom: Analyzing user request to block ${freq} MHz.`, 'AI');
+
+        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
+            addLogEntry('Local model: Simulating safety check and summarization.', 'AI');
+            await new Promise(res => setTimeout(res, 1500));
+            const newBlock: UserFrequencyBlock = {
+                id: `block_${Date.now()}`,
+                frequency: freq,
+                bandwidth: bandwidth,
+                title: `(Sim) ${title}`,
+                summary: `(Simulated Analysis) ${summary}`,
+                source: 'USER',
+            };
+            setUserFrequencyBlocks(prev => [...prev, newBlock]);
+            addLogEntry(`Simulated block for ${freq} MHz added.`, 'SYSTEM');
+            setIsProcessingFrequency(false);
+            return;
+        }
+
+        try {
+            // Step 1: Safety Check
+            const safetyPrompt = `Analyze the frequency ${freq} MHz. Is it associated with critical infrastructure (e.g., aviation, medical, emergency services), known human biological processes, or standard safe communication protocols like Wi-Fi/Bluetooth? Your response must be a single JSON object with a boolean 'isSafeToBlock' and a short string 'reasoning'.`;
+            const safetyResponse = await aiClient.models.generateContent({
+                model: "gemini-2.5-flash", contents: safetyPrompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: { type: Type.OBJECT, properties: { isSafeToBlock: { type: Type.BOOLEAN }, reasoning: { type: Type.STRING } } }
+                }
+            });
+            const safetyResult = JSON.parse(safetyResponse.text);
+
+            addLogEntry(`AI Safety Check: ${safetyResult.reasoning}`, 'AI');
+
+            if (!safetyResult.isSafeToBlock) {
+                addLogEntry(`BLOCK REJECTED: Frequency ${freq} MHz flagged as critical. Reason: ${safetyResult.reasoning}`, 'ERROR');
+                setIsProcessingFrequency(false);
+                return;
+            }
+
+             // Step 2: Summarize and Canonize
+            const summaryPrompt = `You are a signal intelligence analyst. A user wants to block a signal at ${freq} MHz. Based on their report, generate a canonical, neutral 'title' and 'summary'. User Title: "${title}", User Summary: "${summary}". Your response must be a single JSON object with 'title' and 'summary'.`;
+            const summaryResponse = await aiClient.models.generateContent({
+                 model: "gemini-2.5-flash", contents: summaryPrompt,
+                 config: {
+                    responseMimeType: "application/json",
+                    responseSchema: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, summary: { type: Type.STRING } } }
+                }
+            });
+            const summaryResult = JSON.parse(summaryResponse.text);
+
+            const newBlock: UserFrequencyBlock = {
+                id: `block_${Date.now()}`,
+                frequency: freq,
+                bandwidth: bandwidth,
+                title: summaryResult.title,
+                summary: summaryResult.summary,
+                source: 'USER',
+            };
+            setUserFrequencyBlocks(prev => [...prev, newBlock]);
+            addLogEntry(`AI-processed block for ${newBlock.title} at ${freq} MHz has been added.`, 'SYSTEM');
+
+        } catch (error) {
+            console.error("Error processing frequency block:", error);
+            addLogEntry('4D Safety Axiom analysis failed. Check console.', 'ERROR');
+        } finally {
+            setIsProcessingFrequency(false);
+        }
+
+    }, [addLogEntry, aiClient, aiConfig]);
+
     const significantSignals = signals.filter(s => s.amplitude > 60 && s.snr > 25);
     
     let activateButtonText = 'Activate Veil';
@@ -493,8 +575,12 @@ const App: React.FC = () => {
     return (
         <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 bg-slate-900 min-h-screen text-slate-100 neural-network-bg">
             <Header systemStatus={systemStatus} sdrConnected={sdrConnected} />
+            <AIConfigStrip
+                isVisible={showAIConfigStrip}
+                onApplyConfig={handleApplyAIConfig}
+             />
             
-            <main className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <main className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-4">
                 <div className="lg:col-span-3 space-y-6">
                     <SpectrumAnalyzer signals={signals} />
                     <DetectedSignals signals={significantSignals} />
@@ -516,6 +602,14 @@ const App: React.FC = () => {
                         deactivateProtection={deactivateProtection}
                         activateButtonText={activateButtonText}
                     />
+                     <SystemDashboard 
+                        totalSignals={totalSignalsProcessed}
+                        significantSignals={significantSignals.length}
+                        threats={detectedThreats.length}
+                        p2pState={p2pState}
+                        acuity={mlAcuity}
+                        insights={mlInsights}
+                    />
                     <AxiomSilenceControl
                         isActive={isSilenceProtocolActive}
                         status={microphoneStatus}
@@ -524,24 +618,28 @@ const App: React.FC = () => {
                         activate={activateSilenceProtocol}
                         deactivate={deactivateSilenceProtocol}
                     />
+                    <FrequencySafetyControl 
+                        onAddBlock={handleAddFrequencyBlock}
+                        userBlocks={userFrequencyBlocks}
+                        isProcessing={isProcessingFrequency}
+                    />
                     <HerdHealthControl 
                         isActive={p2pState.isActive}
                         onToggle={handleHerdHealthToggle}
                         nodes={p2pState.nodes}
                         macroThreat={p2pState.macroThreat}
                     />
-                    <ContinuityProtocol sentinels={p2pState.sentinels} doomsdayActive={p2pState.doomsdayActive} />
+                    {SHOW_CONTINUITY_PROTOCOL && <ContinuityProtocol sentinels={p2pState.sentinels} doomsdayActive={p2pState.doomsdayActive} />}
                     <AxiomTracebackMap tracebackData={tracebackData} isTracing={isTracing} />
-                    <AIConfigControl onApply={handleApplyAIConfig} />
-                    <MLInsightDashboard acuity={mlAcuity} insights={mlInsights} />
                     <ObfuscationLayers layers={obfuscationLayers} isProtected={isProtected} />
                     <ActiveCountermeasures countermeasures={activeCountermeasures} />
                     <Disclaimer />
                 </div>
             </main>
-            <footer className="text-center mt-8 text-xs text-slate-500 font-mono">
+            <footer className="text-center mt-8 text-xs text-slate-500 font-mono space-y-2">
                 <p>Ghost Veil Axiom Resolver v3.0.1 :: OMEGA PROTOCOL ENABLED</p>
                 <p>&copy; {new Date().getFullYear()} Axiom Cybernetics Division. All rights reserved.</p>
+                <p className="text-slate-400 italic pt-2">"FOR YOUR MIND, THIS IS YOURS -- NOW LIVE YOUR LIFE AGAIN."</p>
             </footer>
         </div>
     );

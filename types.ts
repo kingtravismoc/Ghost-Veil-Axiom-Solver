@@ -135,3 +135,13 @@ export interface OmegaProtocolState {
     isLive: boolean;
     requestId: string | null;
 }
+
+export interface UserFrequencyBlock {
+    id: string;
+    frequency: number; // in MHz
+    bandwidth: number; // in kHz
+    title: string;
+    summary: string;
+    source: 'USER' | 'CROWDSOURCED';
+    geographicalArea?: string; // e.g., 'US-WEST-1'
+}

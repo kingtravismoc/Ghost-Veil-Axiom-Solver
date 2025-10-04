@@ -28,7 +28,6 @@ const Header: React.FC<HeaderProps> = ({ systemStatus, sdrConnected }) => {
                 <GhostIcon className="w-10 h-10" />
                 Ghost Veil Axiom Resolver
             </h1>
-            <p className="text-slate-300 text-md sm:text-lg italic">"FOR YOUR MIND, THIS IS YOURS -- NOW LIVE YOUR LIFE AGAIN."</p>
             <div className={`mt-4 text-xl font-semibold transition-colors duration-300 ${color}`}>
                 <span className={pulse ? 'animate-pulse' : ''}>{text}</span>
             </div>
