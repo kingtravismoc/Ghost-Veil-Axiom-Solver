@@ -1,18 +1,95 @@
 # Ghost Veil Axiom Resolver
 
-An advanced, AI-powered conceptual interface for visualizing real-time signal analysis and multi-spectrum counter-surveillance techniques. This application is for educational and illustrative purposes only.
+**An advanced, AI-powered conceptual interface for visualizing real-time signal analysis, multi-spectrum counter-surveillance techniques, and a simulated P2P economy.**
 
-## Features
-
-- Real-time simulated spectrum analysis.
-- AI-driven threat detection using Google Gemini.
-- Dynamic countermeasure generation based on selected strategies.
-- Decentralized P2P network simulation for macro-threat consensus.
-- Aural bio-resonance scanning for local acoustic threats.
-- High-authority "Axiom Continuity Protocol" failsafe.
+Ghost Veil is an immersive simulation that conceptualizes the tools needed to protect cognitive liberty in a hyper-connected world. It provides a functional, AI-driven interface for detecting, analyzing, and neutralizing complex signal-based threats, from simple transmissions to sophisticated cognitive resonance attacks. This application is for educational and illustrative purposes only.
 
 ---
+
+## Core Concepts
+
+The protocol is built around several key conceptual pillars:
+
+### 1. Signal Intelligence (SIGINT) & Analysis
+The core of the application is its ability to process and understand the electromagnetic spectrum.
+- **SDRDevil Interface:** A simulated Software-Defined Radio (SDR) control panel for initiating various types of scans (`Wideband Sweep`, `Anomaly Scan`, `Passive Intercept`).
+- **Live Spectrum Visualizer:** A real-time waterfall display that visualizes incoming signals, color-coded by intensity and potential threat level.
+- **AI-Powered Classification:** Users can leverage the integrated Google Gemini API to perform deep analysis on any detected signal, receiving a detailed classification, summary, and relevant tags. This enriches the signal database and earns the user rewards.
+
+### 2. Threat Neutralization & Protection
+Once a threat is identified, the protocol provides a suite of tools to counter it.
+- **AI Threat Assessment:** The system automatically analyzes incoming signals and logs potential threats, ranking them by risk (`LOW` to `EXTREME`).
+- **Ghost Veil Protection:** The primary defensive system. When activated, it deploys multiple `Obfuscation Layers` (e.g., Quantum Tunneling, Waveform Mimicry) to shield the operator from hostile signals.
+- **Active Countermeasures:** Based on the active threats and the selected protection strategy, the system engages specific countermeasures, which can be distributed across the P2P network for maximum effect.
+
+### 3. P2P Axiom Network & Herd Health
+Ghost Veil operates on a decentralized philosophy.
+- **Herd Health Protocol:** Users can opt-in to connect their node to the P2P Axiom Network. This strengthens the entire network by contributing to a decentralized consensus.
+- **Macro-Threat Consensus:** When a majority of nodes in the network detect correlated threats, the system declares a "Macro-Threat," providing a high-confidence alert about a large-scale, coordinated attack.
+- **Network Layers:** The simulation supports multiple network layers, including the official `mainnet`, potentially compromised `forknets`, and user-created `custom` networks.
+
+### 4. Bio-Resonance & Neural Security
+The protocol recognizes that the ultimate target is the human operator.
+- **Aural Bio-Resonance Scan:** Uses the device's microphone to perform a simulated scan for local acoustic threats, such as speech pattern analysis, device leakage, or direct neural resonance frequencies.
+- **Bio-Implant Manager:** A dashboard for managing and securing personal implanted devices, visualizing them on a local BLE mesh network, and protecting them from unauthorized access or manipulation.
+
+### 5. Economic Simulation & Decentralized Commerce
+The protocol is a self-sustaining ecosystem with a complete economic model.
+- **Dual-Token Economy:**
+    - **Veil Token (VLT):** The primary utility token used for all commerce, such as buying extensions. Can be purchased with simulated currency.
+    - **Axiom Governance Token (AGT):** A non-tradable reward token earned by contributing to the network (e.g., classifying signals, reviewing extensions). Its value is "unlocked" when the network reaches a critical mass of users.
+- **Extension Store & NFTs:** Developers can create and submit extensions to the store. Upon purchase, extensions are provisioned as NFTs on a simulated private ledger using **AxiomScript**, a proprietary, sandboxed scripting language.
+- **Functions Marketplace:** A platform for proprietary, high-level services (FaaS) built on the Ghost Veil network, such as the "Quantum Transport Protocol API."
+
 ---
+
+## Key Features
+
+-   **Real-Time Simulated Spectrum Analysis:** Visualize and interact with a dynamic, simulated signal environment.
+-   **AI-Driven Threat Detection:** Utilizes Google Gemini for deep analysis and classification of complex signals and threats.
+-   **Dynamic Countermeasure Generation:** Engages defensive protocols based on active threats and user-selected strategies.
+-   **Decentralized P2P Network:** Simulate joining a peer-to-peer network for macro-threat consensus and distributed responses.
+-   **Aural Bio-Resonance Scanning:** A conceptual module for detecting local acoustic and neural-level threats via microphone input.
+-   **Bio-Implant Management:** A dashboard for discovering, monitoring, and securing simulated personal hardware implants.
+-   **Failsafe Protocols:** Includes the high-authority "Axiom Continuity Protocol" and the ultimate "Omega Protocol" for narrative depth.
+-   **Full Economic Simulation:** Features a dual-token economy (VLT & AGT), an Extension Store with NFT provisioning, a Developer Portal, and a super-admin dashboard for managing the ecosystem.
+-   **Role-Based Access:** Supports different user roles (`OPERATOR`, `DEVELOPER`, `SUPER_ADMIN`, `GOV_AGENT`) with unique permissions and interfaces.
+-   **Modular, Mode-Based UI:** A clean, organized interface divided into distinct modes: Dashboard, Spectrum, Neural, Devices, Functions, and System.
+
+---
+
+## Getting Started: Simulation Guide
+
+1.  **Initial Setup:** On first run (or as a super admin), you'll be prompted to set up the system, which includes enabling the commerce engine.
+2.  **Start a Scan:** Navigate to the **Dashboard** view. In the `SDRDevil TX/RX Interface`, select a `Scan Mode` and press "Start Scan." You will see the `Live Spectrum Visualizer` populate with signals.
+3.  **Identify Threats:** The AI will automatically begin analyzing signals. Any identified threats will appear in the `AI Threat Assessment` panel.
+4.  **Activate Protection:** Once threats are detected, the "Activate Veil" button in the `SDRDevil` panel will become enabled. Choose a `Countermeasure Strategy` and activate it to see `Obfuscation Layers` and `Active Countermeasures` engage.
+5.  **Deep Dive:**
+    -   Go to the **Spectrum** view to see a detailed log of significant signals. Use the "Analyze with AI" button (requires Gemini to be enabled in `System > Settings`) to classify a signal.
+    -   Go to the **Neural** view and engage the "Aural Bio-Resonance Scan" to monitor for local acoustic threats.
+    -   Go to the **Devices** view to scan for and manage simulated bio-implants.
+6.  **Explore the Ecosystem:**
+    -   Visit the **Functions** marketplace to see the available FaaS protocols.
+    -   Browse the **System > Extensions** tab to install new tools.
+    -   Check your wallet and AGT rewards in **System > Profile**.
+
+---
+
+## Technology
+
+-   **Frontend:** React, TypeScript, TailwindCSS
+-   **AI Integration:** Google Gemini API for threat analysis, signal classification, and natural language processing.
+
+---
+
+## ⚠️ CRITICAL LEGAL & SAFETY WARNING
+
+-   **This is a conceptual tool for educational purposes. It does not interact with real hardware.**
+-   Transmitting radio frequencies or jamming signals is **illegal** in most jurisdictions and can have severe consequences.
+-   The data and analysis are AI-generated for functional purposes and should **not** be used for real-world decisions.
+-   Always comply with all local, national, and international laws regarding telecommunications and privacy.
+-   **Safety Protocol Active:** System logic includes a non-negotiable directive to avoid interference with known medical device frequencies (e.g., MedRadio band).
+
 ---
 
 <details>
