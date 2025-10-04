@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import type { Signal } from '../types';
 
@@ -19,62 +18,59 @@ const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ signals }) => {
         const width = canvas.width;
         const height = canvas.height;
 
-        // Clear canvas
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, width, height);
+        // Shift existing image down
+        const imageData = ctx.getImageData(0, 0, width, height);
+        ctx.putImageData(imageData, 0, 1);
 
-        // Draw grid
+        // Clear top row
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, 1);
+
+        // Draw horizontal grid lines (now representing amplitude)
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 0.5;
-        for (let i = 1; i < 10; i++) {
-            const y = (height / 10) * i;
+        for (let i = 1; i < 5; i++) {
+            const x = (width / 5) * i;
             ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, 1);
             ctx.stroke();
         }
-
-        if (signals.length === 0) return;
-
-        const recentSignals = signals.slice(-200);
         
-        // Draw signal line
-        ctx.strokeStyle = '#22d3ee';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        recentSignals.forEach((signal, i) => {
-            const x = (i / (recentSignals.length - 1)) * width;
-            const y = height - (signal.amplitude / 100) * height;
-            if (i === 0) {
-                ctx.moveTo(x, y);
+        // Find the most recent signals
+        if (signals.length === 0) return;
+        const recentSignals = signals.slice(-5); // Process a few signals per frame
+
+        recentSignals.forEach(signal => {
+            const x = (signal.amplitude / 100) * width;
+            const brightness = 150 + (signal.amplitude / 100) * 105;
+            const size = 1 + (signal.snr / 50) * 2;
+             let color;
+
+            if (signal.amplitude > 85 && signal.snr > 35) {
+                color = `rgba(239, 68, 68, ${0.5 + (signal.amplitude / 200)})`; // Red for threats
+            } else if (signal.amplitude > 70) {
+                 color = `rgba(234, 179, 8, ${0.4 + (signal.amplitude / 200)})`; // Yellow for significant
             } else {
-                ctx.lineTo(x, y);
+                 color = `rgba(34, 211, 238, ${0.3 + (signal.amplitude / 200)})`; // Cyan for normal
             }
-        });
-        ctx.stroke();
 
-        // Highlight significant signals
-        const significantSignals = signals.filter(s => s.amplitude > 85 && s.snr > 35);
-        significantSignals.forEach(signal => {
-            const y = height - (signal.amplitude / 100) * height;
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(Math.random() * width, y, 3, 0, Math.PI * 2);
+            ctx.arc(x, 0, size, 0, Math.PI * 2);
             ctx.fill();
-
-            ctx.fillStyle = '#ef4444';
-            ctx.font = '10px monospace';
-            ctx.fillText(`${(signal.frequency / 1e6).toFixed(1)}MHz`, 10, y - 5);
         });
 
     }, [signals]);
 
     return (
-        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 h-full flex flex-col">
              <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-slate-300">
                 Live Spectrum
             </h2>
-            <canvas ref={canvasRef} width="600" height="250" className="w-full h-auto rounded bg-slate-900" />
+            <div className="w-full flex-grow rounded bg-slate-900 min-h-[300px]">
+                <canvas ref={canvasRef} width="300" height="800" className="w-full h-full" />
+            </div>
         </div>
     );
 };

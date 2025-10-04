@@ -1,6 +1,6 @@
 import React from 'react';
-import { ActivityIcon, BrainCircuitIcon, RadarIcon, UsersIcon } from './icons';
-import type { MLInsight, P2PState } from '../types';
+import { ActivityIcon, BrainCircuitIcon, RadarIcon, UsersIcon, TerminalIcon } from './icons';
+import type { MLInsight, P2PState, ActivityEvent } from '../types';
 
 interface SystemDashboardProps {
     totalSignals: number;
@@ -9,6 +9,7 @@ interface SystemDashboardProps {
     p2pState: P2PState;
     acuity: number;
     insights: MLInsight[];
+    activityEvents: ActivityEvent[];
 }
 
 const MetricCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number; colorClass: string }> = ({ icon, label, value, colorClass }) => (
@@ -32,14 +33,29 @@ const getInsightTypeInfo = (type: MLInsight['type']): { label: string; color: st
     }
 };
 
-const SystemDashboard: React.FC<SystemDashboardProps> = ({ totalSignals, significantSignals, threats, p2pState, acuity, insights }) => {
+const RecentActivityFeed: React.FC<{ events: ActivityEvent[] }> = ({ events }) => (
+    <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2"><TerminalIcon className="w-4 h-4" />Recent Activity</h3>
+        <div className="space-y-1.5 max-h-32 overflow-y-auto pr-2 bg-slate-900/50 p-2 rounded-md font-mono text-xs">
+            {events.length === 0 && <p className="text-slate-500">No recent activity.</p>}
+            {events.map(event => (
+                <div key={event.id} className="flex gap-2 items-start">
+                    <span className="text-slate-500 flex-shrink-0">{new Date(event.timestamp).toLocaleTimeString()}</span>
+                    <p className="text-slate-300 break-words">{event.message}</p>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+const SystemDashboard: React.FC<SystemDashboardProps> = ({ totalSignals, significantSignals, threats, p2pState, acuity, insights, activityEvents }) => {
     const acuityPercent = (acuity * 100);
     const circumference = 2 * Math.PI * 18; // 2 * pi * r
     const strokeDashoffset = circumference - (acuityPercent / 100) * circumference;
     const activePeers = p2pState.isActive ? p2pState.nodes.filter(n => n.id !== 'self_node' && n.status !== 'OFFLINE').length : 0;
 
     return (
-        <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700 quantum-shield space-y-4">
+        <div className="bg-slate-800/50 rounded-lg p-4 sm:p-6 border border-slate-700 quantum-shield space-y-4">
             <h2 className="text-xl font-semibold">System Dashboard & ML Core</h2>
             
             <div className="grid grid-cols-2 gap-3">
@@ -49,8 +65,8 @@ const SystemDashboard: React.FC<SystemDashboardProps> = ({ totalSignals, signifi
                 <MetricCard icon={<UsersIcon className="w-5 h-5"/>} label="Active Peers" value={activePeers} colorClass="bg-purple-600/50 text-purple-300" />
             </div>
 
-            <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex items-center gap-4">
-                <div className="relative w-20 h-20">
+            <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative w-20 h-20 flex-shrink-0">
                     <svg className="w-full h-full" viewBox="0 0 40 40">
                         <circle cx="20" cy="20" r="18" className="stroke-slate-700" strokeWidth="3" fill="transparent" />
                         <circle
@@ -76,6 +92,8 @@ const SystemDashboard: React.FC<SystemDashboardProps> = ({ totalSignals, signifi
                     <p className="text-xs text-slate-400">System's predictive accuracy based on processed signals and threat analysis.</p>
                 </div>
             </div>
+
+            <RecentActivityFeed events={activityEvents} />
 
             {insights.length > 0 && (
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-2">

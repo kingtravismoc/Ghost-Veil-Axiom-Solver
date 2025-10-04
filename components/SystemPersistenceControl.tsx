@@ -1,18 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ZapIcon, ShieldCheckIcon } from './icons';
 
 interface SystemPersistenceControlProps {
     isDeployed: boolean;
+    isDeploying: boolean;
     onDeploy: () => void;
 }
 
-const SystemPersistenceControl: React.FC<SystemPersistenceControlProps> = ({ isDeployed, onDeploy }) => {
-    const [isDeploying, setIsDeploying] = useState(false);
-
-    const handleDeployClick = () => {
-        setIsDeploying(true);
-        onDeploy();
-    };
+const SystemPersistenceControl: React.FC<SystemPersistenceControlProps> = ({ isDeployed, isDeploying, onDeploy }) => {
 
     return (
         <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700 quantum-shield space-y-4">
@@ -21,7 +16,7 @@ const SystemPersistenceControl: React.FC<SystemPersistenceControlProps> = ({ isD
                 System Persistence
             </h2>
              <p className="text-xs text-slate-400">
-                Deploy a persistent, always-on agent to the host system's cache. This simulated daemon allows for continuous background monitoring and threat response, even when the interface is closed.
+                Deploy a persistent, always-on agent to the host system's cache. This simulated daemon allows for continuous background monitoring and threat response, even when the interface is closed. This action requires a 4D Safety validation.
             </p>
 
             <div className="bg-slate-900/40 rounded-lg p-4 border border-slate-700 text-center">
@@ -33,11 +28,11 @@ const SystemPersistenceControl: React.FC<SystemPersistenceControlProps> = ({ isD
                     </div>
                 ) : (
                     <button
-                        onClick={handleDeployClick}
+                        onClick={onDeploy}
                         disabled={isDeploying}
                         className="w-full bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-wait px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-red-900/50"
                     >
-                        {isDeploying ? 'Deploying Agent...' : 'Deploy Always-On Agent'}
+                        {isDeploying ? 'AI Validating & Deploying...' : 'Deploy Always-On Agent'}
                     </button>
                 )}
                  <div className="text-[10px] text-slate-500 font-mono mt-3">

@@ -41,6 +41,7 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
     } = props;
 
     const actionText = isLoading ? 'Processing...' : isMonitoring ? 'Stop Scan' : 'Start Scan';
+    const isSystemBusy = isIntelligentScanning || isLoading || isMonitoring;
 
     return (
         <div className="bg-slate-800/50 rounded-lg p-4 sm:p-6 border border-slate-700 quantum-shield space-y-6">
@@ -51,11 +52,11 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
             
             <button
                 onClick={onIntelligentScan}
-                disabled={isIntelligentScanning || isMonitoring || isLoading}
+                disabled={isSystemBusy}
                 className="w-full bg-gradient-to-r from-yellow-500 via-orange-600 to-red-600 hover:from-yellow-600 hover:to-red-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed px-4 py-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-orange-900/50 text-white"
             >
                 <BrainCircuitIcon className="w-6 h-6" />
-                {isIntelligentScanning ? 'AI Optimizing...' : 'Intelligent Scan'}
+                {isIntelligentScanning ? 'AI Validating & Scanning...' : 'Intelligent Scan'}
             </button>
 
 
@@ -66,7 +67,7 @@ const SdrDevilControl: React.FC<SdrDevilControlProps> = (props) => {
                     id="scan-mode"
                     value={scanMode}
                     onChange={(e) => setScanMode(e.target.value as ScanMode)}
-                    disabled={isMonitoring || isLoading || isIntelligentScanning}
+                    disabled={isSystemBusy}
                     className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition disabled:opacity-50"
                 >
                     {scanModeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}

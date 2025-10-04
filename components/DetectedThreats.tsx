@@ -1,5 +1,5 @@
+
 import React from 'react';
-// FIX: Import missing icons
 import { RadarIcon, MapPinIcon, MuteIcon, RecordIcon, SampleIcon, SoloIcon } from './icons';
 import type { Threat } from '../types';
 

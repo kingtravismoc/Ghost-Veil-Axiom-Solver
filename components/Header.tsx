@@ -1,19 +1,64 @@
 import React from 'react';
-import { GhostIcon } from './icons';
+import { GhostIcon, UserPlusIcon, GlobeIcon, WalletIcon } from './icons';
+import type { SystemStatus, UserProfile, Network, Wallet } from '../types';
+import NetworkDropdown from './NetworkDropdown';
+import MasterControl from './MasterControl';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    status: SystemStatus;
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+    userProfile: UserProfile;
+    onShowAddFriend: () => void;
+    onShowShare: () => void;
+    onShowGovSignup: () => void;
+    networks: Network[];
+    selectedNetwork: Network | null;
+    onSelectNetwork: (network: Network) => void;
+    onAddNetwork: () => void;
+    onOpenTriggers: () => void;
+    wallet: Wallet | null;
+    onShowWallet: () => void;
+    isCommerceEnabled: boolean;
+}
+
+const TabButton: React.FC<{ isActive: boolean; onClick: () => void; children: React.ReactNode }> = ({ isActive, onClick, children }) => (
+    <button
+        onClick={onClick}
+        className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${
+            isActive ? 'bg-cyan-600 text-white' : 'text-slate-300 hover:bg-slate-700'
+        }`}
+    >
+        {children}
+    </button>
+);
+
+
+const Header: React.FC<HeaderProps> = (props) => {
+    const { status, activeTab, onTabChange, onShowAddFriend, onShowShare, onShowGovSignup, networks, selectedNetwork, onSelectNetwork, onAddNetwork, onOpenTriggers, wallet, onShowWallet, isCommerceEnabled } = props;
+
     return (
-        <header className="bg-slate-900/50 backdrop-blur-sm p-4 border-b border-slate-700 sticky top-0 z-20">
-            <div className="container mx-auto flex items-center justify-between">
+        <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 p-3 sticky top-0 z-40">
+            <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <GhostIcon className="w-8 h-8 text-cyan-400" />
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-100">Ghost Veil Protocol</h1>
-                        <p className="text-xs text-slate-400">Cognitive Liberty & Signal Integrity Framework</p>
-                    </div>
+                    <h1 className="text-xl font-bold hidden sm:block">Ghost Veil Protocol</h1>
                 </div>
-                <div className="text-xs font-mono text-green-400 animate-pulse">
-                    SYSTEM NOMINAL
+
+                <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-lg">
+                   <TabButton isActive={activeTab === 'Operations'} onClick={() => onTabChange('Operations')}>Operations</TabButton>
+                   <TabButton isActive={activeTab === 'Management'} onClick={() => onTabChange('Management')}>Management</TabButton>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {isCommerceEnabled && wallet && (
+                        <button onClick={onShowWallet} className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 rounded-md text-sm font-medium text-slate-200 transition-colors">
+                            <WalletIcon className="w-4 h-4 text-green-400" />
+                            <span className="font-mono">{wallet.balance.toFixed(2)} VLT</span>
+                        </button>
+                    )}
+                     <NetworkDropdown networks={networks} selectedNetwork={selectedNetwork} onSelect={onSelectNetwork} onAddNetwork={onAddNetwork} />
+                     <MasterControl status={status} setStatus={() => {}} onOpenTriggers={onOpenTriggers} />
                 </div>
             </div>
         </header>
