@@ -1,5 +1,4 @@
 
-
 import React, { useRef, useEffect } from 'react';
 import type { Signal as AppSignal, ScanMode } from '../types';
 
@@ -9,36 +8,11 @@ interface SpectrumAnalyzerProps {
   className?: string;
   activePeers: number;
   isSummaryView?: boolean;
+  onSignalSelect: (signal: AppSignal) => void;
+  selectedSignal: AppSignal | null;
 }
 
-// Internal display-focused signal type
-type DisplaySignal = {
-  id: string;
-  frequency: string;
-  type: string;
-  threat: 'low' | 'medium' | 'high' | 'extreme';
-  description: string;
-  timestamp: number;
-};
-
-// Mapper function to convert application signal to display signal
-const mapSignalToDisplaySignal = (signal: AppSignal): DisplaySignal => {
-    let threat: DisplaySignal['threat'] = 'low';
-    if (signal.amplitude > 75) threat = 'medium';
-    if (signal.amplitude > 88 && signal.snr > 38) threat = 'high';
-    // FIX: Add optional chaining to .includes() to prevent runtime error if classification is undefined.
-    if (signal.classification?.toLowerCase()?.includes('resonance') || signal.classification?.toLowerCase()?.includes('cognitive')) threat = 'extreme';
-
-    return {
-        id: signal.id,
-        frequency: `${(signal.frequency / 1e6).toFixed(2)} MHz`,
-        type: signal.classification || signal.modulation,
-        threat: threat,
-        description: signal.summary || `SNR: ${signal.snr.toFixed(1)} dB | Amp: ${signal.amplitude.toFixed(1)}`,
-        timestamp: signal.timestamp,
-    };
-};
-
+const MAX_FREQ = 6e9; // 6 GHz
 
 export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
   signals,
@@ -46,14 +20,42 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
   className = '',
   activePeers = 0,
   isSummaryView = false,
+  onSignalSelect,
+  selectedSignal,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>();
 
-  // FIX: Reordered chained methods to call reverse() before map(), resolving an argument error. This pattern is consistent with other working components.
-  const detectedSignals = signals.slice(-10).reverse().map(mapSignalToDisplaySignal);
   const isScanning = scanMode !== 'off';
   const canvasHeight = isSummaryView ? 120 : 300;
+
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isSummaryView || signals.length === 0) return;
+    
+    const canvas = event.currentTarget;
+    // FIX: Using getBoundingClientRect for robust click coordinate calculation.
+    // The previous implementation with event.nativeEvent.offsetX may have caused issues.
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const clickedFreq = (x / canvas.width) * MAX_FREQ;
+
+    // Find the closest signal to the click
+    let closestSignal: AppSignal | null = null;
+    let minDistance = Infinity;
+
+    signals.forEach(signal => {
+        const distance = Math.abs(signal.frequency - clickedFreq);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestSignal = signal;
+        }
+    });
+    
+    // Select if it's reasonably close
+    if (closestSignal && minDistance < (MAX_FREQ / canvas.width) * 10) { // Within 10 pixels
+        onSignalSelect(closestSignal);
+    }
+  };
 
 
   useEffect(() => {
@@ -96,20 +98,19 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
 
 
     const drawSpectrum = () => {
-      // Scroll the existing canvas image down by one pixel
       ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height - 1, 0, 1, canvas.width, canvas.height - 1);
 
       const topRowImageData = ctx.createImageData(canvas.width, 1);
       const data = topRowImageData.data;
 
       for (let x = 0; x < canvas.width; x++) {
-        const frequency = (x / canvas.width) * 6000;
+        const frequency = (x / canvas.width) * MAX_FREQ;
         let intensity = Math.random() * 0.25;
 
         if (scanMode === 'WIDEBAND_SWEEP' && Math.random() > 0.995) intensity = 0.5 + Math.random() * 0.5;
         if (scanMode === 'ANOMALY_SCAN' && Math.random() > 0.998) intensity = 0.8 + Math.random() * 0.2;
         
-        if ((frequency > 2400 && frequency < 2500) || (frequency > 5100 && frequency < 5800)) {
+        if ((frequency > 2.4e9 && frequency < 2.5e9) || (frequency > 5.1e9 && frequency < 5.8e9)) {
           intensity += 0.3 + Math.sin(Date.now() / 400 + x / 20) * 0.15;
         }
 
@@ -122,8 +123,8 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
 
       // --- K-TMOC Tag Rendering ---
       if (activePeers > 0) {
-          const tagFrequency = 4500; // in MHz
-          const tagX = (tagFrequency / 6000) * canvas.width;
+          const tagFrequency = 4.5e9;
+          const tagX = (tagFrequency / MAX_FREQ) * canvas.width;
           ctx.fillStyle = 'rgba(0, 255, 255, 0.08)';
           ctx.font = 'bold 10px monospace';
           ctx.save();
@@ -157,6 +158,25 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
+      
+      // Draw selected signal tuner line
+      if (selectedSignal && !isSummaryView) {
+        const x = (selectedSignal.frequency / MAX_FREQ) * canvas.width;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(x - 40, 0, 80, 18);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${(selectedSignal.frequency / 1e6).toFixed(2)} MHz`, x, 13);
+        ctx.textAlign = 'start';
+      }
 
       animationRef.current = requestAnimationFrame(drawSpectrum);
     };
@@ -167,89 +187,14 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({
       window.removeEventListener('resize', updateCanvasSize);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [scanMode, isScanning, activePeers, canvasHeight, isSummaryView]);
+  }, [scanMode, isScanning, activePeers, canvasHeight, isSummaryView, selectedSignal]);
 
-  const getThreatColor = (threat: string) => {
-    switch (threat) {
-      case 'low': return '#22c55e';
-      case 'medium': return '#f59e0b';
-      case 'high': return '#ef4444';
-      case 'extreme': return '#be185d';
-      default: return '#22c55e';
-    }
-  };
+  const containerClass = `h-full flex flex-col ${className}`;
+  const canvasClass = `w-full h-full border border-slate-700 bg-slate-900 ${!isSummaryView ? 'rounded-lg cursor-pointer' : ''}`;
 
   return (
-    <div className={`spectrum-analyzer ${className} ${isSummaryView ? 'summary' : ''}`}>
-      <style>{`
-        .spectrum-analyzer { background: rgba(15, 23, 42, 0.3); border-bottom: 1px solid #334155; padding: 20px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; display: flex; gap: 20px; height: 100%; }
-        .spectrum-analyzer.summary { padding: 0; border-bottom: none; }
-        .analyzer-main { flex: 3; display: flex; flex-direction: column; min-width: 0; }
-        .spectrum-analyzer.summary .analyzer-main { flex: 1; }
-        .analyzer-sidebar { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-        .analyzer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .spectrum-analyzer.summary .analyzer-header { display: none; }
-        .analyzer-title { font-size: 18px; color: #67e8f9; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
-        .scan-status { display: flex; align-items: center; gap: 10px; color: #94a3b8; font-size: 12px; }
-        .status-indicator { width: 10px; height: 10px; border-radius: 50%; animation: pulse 1.5s infinite ease-in-out; }
-        .status-indicator.active { background: #22d3ee; box-shadow: 0 0 10px #22d3ee; }
-        .status-indicator.inactive { background: #334155; }
-        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.9); } }
-        .spectrum-canvas { width: 100%; height: ${canvasHeight}px; border: 1px solid #334155; background: #020617; border-radius: 4px; }
-        .spectrum-analyzer.summary .spectrum-canvas { border: none; border-radius: 0; }
-        .signal-list { flex-grow: 1; overflow-y: auto; background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 4px; border: 1px solid #334155; }
-        .signal-list-title { color: #cbd5e1; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; font-weight: 600; }
-        .signal-item { padding: 8px; margin-bottom: 5px; background: rgba(51, 65, 85, 0.3); border-left: 3px solid; transition: all 0.2s; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-radius: 2px; }
-        .signal-item:hover { background: rgba(51, 65, 85, 0.7); transform: translateX(5px); }
-        .signal-info { flex: 1; min-width: 0; }
-        .signal-freq { color: #e2e8f0; font-weight: bold; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .signal-desc { font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .threat-indicator { width: 12px; height: 12px; border-radius: 50%; animation: blink 1.2s infinite ease-in-out; flex-shrink: 0; margin-left: 10px; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .no-signals { color: #94a3b8; text-align: center; padding: 20px; font-style: italic; }
-        .signal-list::-webkit-scrollbar { width: 8px; }
-        .signal-list::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.5); }
-        .signal-list::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        .signal-list::-webkit-scrollbar-thumb:hover { background: #64748b; }
-      `}</style>
-      <div className="analyzer-main">
-        <div className="analyzer-header">
-            <div className="analyzer-title">Live Spectrum</div>
-            <div className="scan-status">
-            <div className={`status-indicator ${isScanning ? 'active' : 'inactive'}`}></div>
-            <span>{isScanning ? `${scanMode.toUpperCase().replace('_', ' ')} SCAN` : 'IDLE'}</span>
-            </div>
-        </div>
-        <canvas ref={canvasRef} className="spectrum-canvas" />
-      </div>
-      {!isSummaryView && (
-      <div className="analyzer-sidebar">
-        <div className="signal-list">
-            <div className="signal-list-title">Recent Signals</div>
-            {detectedSignals.length > 0 ? (
-            detectedSignals.map((signal) => (
-                <div
-                key={signal.id}
-                className="signal-item"
-                style={{ borderLeftColor: getThreatColor(signal.threat) }}
-                >
-                <div className="signal-info">
-                    <div className="signal-freq" title={`${signal.frequency} - ${signal.type}`}>{signal.frequency} - {signal.type}</div>
-                    <div className="signal-desc" title={signal.description}>{signal.description}</div>
-                </div>
-                <div
-                    className="threat-indicator"
-                    style={{ backgroundColor: getThreatColor(signal.threat) }}
-                    title={`Threat level: ${signal.threat}`}
-                ></div>
-                </div>
-            ))
-            ) : (
-            <div className="no-signals">No significant signals detected.</div>
-            )}
-        </div>
-      </div>
-      )}
+    <div className={containerClass}>
+      <canvas ref={canvasRef} className={canvasClass} onClick={handleCanvasClick} />
     </div>
   );
 };

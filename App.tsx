@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import useSystem from './hooks/useSystem';
 import Header from './components/Header';
@@ -33,13 +32,13 @@ import BuyTokensModal from './components/BuyTokensModal';
 import AdminSetupModal from './components/AdminSetupModal';
 import FunctionsDashboard from './components/FunctionsDashboard';
 import GhostNetTriage from './components/GhostNetTriage';
-// FIX: Removed import for obsolete HerdHealthControl component.
 import SpectrumAnalyzer from './components/SpectrumAnalyzer';
 import SdrppWidget from './components/SdrppWidget';
 import WithdrawModal from './components/WithdrawModal';
-import WaveMaskControl from './components/WaveMaskControl'; // New
-import Footer from './components/Footer'; // New
-import ExtensionHost from './components/ExtensionHost'; // New
+import WaveMaskControl from './components/WaveMaskControl';
+import Footer from './components/Footer';
+import ExtensionHost from './components/ExtensionHost';
+import SignalDetailPanel from './components/SignalDetailPanel'; // New
 
 import { P2PNode, Signal, AIConfig, Network, UserProfile, Wallet, CognitiveMetricsState, ActivityEvent, MLInsight, Extension } from './types';
 import { BrainCircuitIcon, XIcon, UsersIcon, ShieldCheckIcon, ActivityIcon, RadarIcon, TerminalIcon, WaveformIcon, CubeIcon } from './components/icons';
@@ -207,6 +206,8 @@ const DashboardView: React.FC<{ system: any }> = ({ system }) => (
                 signals={system.signals}
                 scanMode={system.sdrDevilProps.isMonitoring ? system.sdrDevilProps.scanMode : 'off'}
                 activePeers={system.p2pState.nodes.filter((n: P2PNode) => n.status !== 'OFFLINE').length}
+                onSignalSelect={() => {}}
+                selectedSignal={null}
             />
         </div>
 
@@ -248,116 +249,29 @@ const DashboardView: React.FC<{ system: any }> = ({ system }) => (
     </div>
 );
 
-// Local component for SpectrumView
-const SdrInterface: React.FC<{ system: any }> = ({ system }) => {
-    const WaveformCanvas: React.FC = () => {
-        const canvasRef = React.useRef<HTMLCanvasElement>(null);
-        React.useEffect(() => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            let frame: number;
-            let t = 0;
-            const draw = () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = '#67e8f9';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                for (let i = 0; i < 200; i++) {
-                    const x = (i / 199) * canvas.width;
-                    const y = canvas.height / 2 + Math.sin(i * 0.1 + t) * Math.cos(i * 0.05 + t) * (canvas.height / 2.2);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.stroke();
-                t += 0.02;
-                frame = requestAnimationFrame(draw);
-            };
-            draw();
-            return () => cancelAnimationFrame(frame);
-        }, []);
-        return <canvas ref={canvasRef} width="150" height="150" className="w-full h-full bg-slate-900/50 rounded" />;
-    };
-
+const SpectrumView: React.FC<{ system: any }> = ({ system }) => {
     return (
-        <StandardCard title="Full Spectrum SDR Interface" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />} className="flex-grow">
-            <div className="flex flex-col h-full">
-                <div className="flex-grow">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
+            <div className="lg:col-span-2 flex flex-col">
+                <StandardCard title="SDR++ Full Spectrum Intelligence" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />} className="flex-grow">
                     <SpectrumAnalyzer
                         signals={system.signals}
                         scanMode={system.sdrDevilProps.isMonitoring ? system.sdrDevilProps.scanMode : 'off'}
                         activePeers={system.p2pState.nodes.filter((n: P2PNode) => n.status !== 'OFFLINE').length}
+                        onSignalSelect={system.setSelectedSignal}
+                        selectedSignal={system.selectedSignal}
                     />
-                </div>
-                <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-t border-slate-700 bg-slate-900/30 text-xs">
-                    <div>
-                        <h4 className="text-sm font-semibold mb-2">Tuner Controls (Simulated)</h4>
-                        <div className="space-y-2">
-                            <p><strong>Frequency:</strong> 145.650 MHz</p>
-                            <p><strong>Bandwidth:</strong> 12.5 kHz</p>
-                            <p><strong>Modulation:</strong> NFM</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-semibold mb-2">Waveform Analysis</h4>
-                        <div className="w-full aspect-square mt-2 max-w-[150px]">
-                             <WaveformCanvas />
-                        </div>
-                    </div>
-                    <div>
-                         <h4 className="text-sm font-semibold mb-2">Signal Legend</h4>
-                         <ul className="space-y-1">
-                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-cyan-400"></div><span>Data Burst</span></li>
-                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-green-400"></div><span>Voice Comms</span></li>
-                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-yellow-400"></div><span>Beacon</span></li>
-                            <li className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-red-400"></div><span>Encrypted / Unknown</span></li>
-                         </ul>
-                    </div>
-                </div>
-            </div>
-        </StandardCard>
-    );
-};
-
-const SpectrumView: React.FC<{ system: any }> = ({ system }) => {
-    const significantSignals = system.signals.filter((s: Signal) => s.amplitude > 60 || s.snr > 30).slice(-50).reverse();
-    return (
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
-            <div className="lg:col-span-2 flex flex-col">
-                 <SdrInterface system={system} />
-            </div>
-            <div className="lg:col-span-1 flex flex-col gap-6 overflow-y-auto pr-2">
-                <StandardCard title="Significant Signals Log" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />}>
-                     {significantSignals.length === 0 && <p className="text-slate-400">No significant signals detected yet. Start a scan.</p>}
-                     <div className="space-y-2">
-                        {significantSignals.map((signal: Signal) => (
-                            <div key={signal.id} className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
-                                <div className="grid grid-cols-4 gap-2 text-xs mb-2">
-                                    <div><span className="text-slate-400">Freq:</span><span className="ml-2 text-cyan-400 font-mono">{(signal.frequency / 1e6).toFixed(2)} MHz</span></div>
-                                    <div><span className="text-slate-400">Amp:</span><span className="ml-2 text-green-400 font-mono">{signal.amplitude.toFixed(1)} dB</span></div>
-                                    <div><span className="text-slate-400">Mod:</span><span className="ml-2 text-purple-400 font-mono">{signal.modulation}</span></div>
-                                    <div><span className="text-slate-400">SNR:</span><span className="ml-2 text-yellow-400 font-mono">{signal.snr.toFixed(1)}</span></div>
-                                </div>
-                                {signal.isClassified && (
-                                     <div className="text-xs p-2 bg-slate-900/50 rounded-md border-l-2 border-cyan-400">
-                                         <p><strong className="text-slate-200">{signal.classification}</strong></p>
-                                         <p className="text-slate-300 italic">"{signal.summary}"</p>
-                                         <div className="flex gap-1 mt-1">
-                                            {signal.tags?.map(t => <span key={t} className="px-1.5 py-0.5 bg-slate-700 rounded-full text-[10px]">{t}</span>)}
-                                         </div>
-                                     </div>
-                                )}
-                                <div className="flex gap-2 mt-2">
-                                    <button onClick={() => system.classifySignalWithAI(signal.id)} disabled={system.aiConfig.provider !== 'GEMINI' || system.isClassifyingSignal} className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50 disabled:cursor-wait">
-                                       {system.isClassifyingSignal ? "Analyzing..." : "Analyze with AI"}
-                                    </button>
-                                    <button onClick={() => system.setSignalToAnnotate(signal)} className="text-xs px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-md">Edit Annotation</button>
-                                </div>
-                            </div>
-                        ))}
-                     </div>
                 </StandardCard>
+            </div>
+            <div className="lg:col-span-1 flex flex-col gap-6">
+                <SignalDetailPanel
+                    signal={system.selectedSignal}
+                    onAnnotate={() => system.setShowSignalAnnotationModal(true)}
+                    onClassify={system.classifySignalWithAI}
+                    isClassifying={system.isClassifyingSignal}
+                    onDownloadIntel={system.downloadSignalIntel}
+                    isAiEnabled={system.aiConfig.provider === 'GEMINI'}
+                />
                 <StandardCard title="Frequency Catalog" icon={<WaveformIcon className="w-5 h-5 text-cyan-400" />}>
                      <FrequencyCatalog />
                 </StandardCard>
@@ -385,6 +299,7 @@ const ExtensionsView: React.FC<{ system: any }> = ({ system }) => (
         onUninstall={system.uninstallExtension}
         onPurchase={(ext: Extension) => system.setExtensionToPurchase(ext)}
         isCommerceEnabled={system.isCommerceEnabled}
+        onExport={system.exportExtension}
     />
 );
 
@@ -493,7 +408,7 @@ const SystemView: React.FC<{ system: any }> = ({ system }) => {
                     <ContinuityProtocol sentinels={system.sentinels} doomsdayActive={false} />
                 </div>
             )}
-            {activeTab === 'Developer' && <DeveloperPortal currentUser={system.currentUser} developerProfile={system.developerProfile} onUpdateDeveloperProfile={() => {}} extensions={system.extensions} onExtensionSubmit={system.submitExtension} onFunctionSubmit={system.submitFunctionProtocol} />}
+            {activeTab === 'Developer' && <DeveloperPortal {...system.developerPortalProps} />}
             {activeTab === 'Admin' && <AdminDashboard {...system.adminDashboardProps} />}
         </div>
     );
@@ -536,7 +451,7 @@ const App: React.FC = () => {
             {system.isCommerceEnabled && system.showWithdrawModal && <WithdrawModal balance={system.developerProfile?.withdrawableBalance || 0} onClose={() => system.setShowWithdrawModal(false)} onConfirm={system.withdrawTokens} />}
             {system.showAdminSetup && <AdminSetupModal onVerifyGithub={system.verifyGithubToken} onSubmit={system.completeAdminSetup} />}
             {system.showNetworkDetailModal && <NetworkDetailModal network={system.selectedNetwork} nodes={system.p2pState.nodes} onClose={() => system.setShowNetworkDetailModal(false)} />}
-            {system.showSignalAnnotationModal && <SignalAnnotationModal signal={system.signalToAnnotate} onClose={() => system.setShowSignalAnnotationModal(false)} onSave={system.updateSignalAnnotation} />}
+            {system.showSignalAnnotationModal && <SignalAnnotationModal signal={system.selectedSignal} onClose={() => system.setShowSignalAnnotationModal(false)} onSave={system.updateSignalAnnotation} />}
             {system.activeExtensionId && <ExtensionHost extensionId={system.activeExtensionId} system={system} onClose={() => system.setActiveExtensionId(null)} />}
 
 

@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import type { LogEntry, LogType, ActiveOperation, Extension } from '../types';
-import { TerminalIcon, ChevronUpIcon, ChevronDownIcon, CubeAltIcon, RadarIcon, UsersIcon } from './icons';
+import { TerminalIcon, ChevronUpIcon, ChevronDownIcon, CubeAltIcon, RadarIcon, UsersIcon, ArrowUpTrayIcon, ShieldCheckIcon } from './icons';
 
 const getLogTypeClass = (type: LogType): string => {
     switch (type) {
@@ -18,6 +17,8 @@ const getIconForExt = (iconName: string) => {
     switch(iconName) {
         case 'RadarIcon': return <RadarIcon className="w-5 h-5" />;
         case 'UsersIcon': return <UsersIcon className="w-5 h-5" />;
+        case 'ArrowUpTrayIcon': return <ArrowUpTrayIcon className="w-5 h-5" />;
+        case 'ShieldCheckIcon': return <ShieldCheckIcon className="w-5 h-5" />;
         default: return <CubeAltIcon className="w-5 h-5" />;
     }
 }

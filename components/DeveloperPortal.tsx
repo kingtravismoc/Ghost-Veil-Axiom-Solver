@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { UserProfile, DeveloperProfile, Extension, Transaction, FunctionProtocol } from '../types';
 import { CodeBracketIcon, ChartBarIcon, BookOpenIcon, ArrowUpTrayIcon, FlaskIcon, StoreIcon } from './icons';
@@ -9,7 +8,7 @@ interface DeveloperPortalProps {
     developerProfile: DeveloperProfile | null;
     onUpdateDeveloperProfile: (alias: string) => void;
     extensions: Extension[];
-    onExtensionSubmit: (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'>) => void;
+    onExtensionSubmit: (ext: Omit<Extension, 'id'|'authorId'|'authorAlias'|'validationTests'|'status'|'isNft'|'contractId'|'authorName'|'installDate'|'userCount'|'githubUrl'> & { obfuscationLevel: number }) => void;
     onFunctionSubmit: (func: Omit<FunctionProtocol, 'id'|'author'|'authorId'|'reviewStatus'|'status'>) => void;
 }
 
@@ -73,6 +72,11 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
     const [price, setPrice] = useState(0);
     const [isFree, setIsFree] = useState(true);
     const [icon, setIcon] = useState('CubeAltIcon');
+    const [fileName, setFileName] = useState('');
+    const [allowExport, setAllowExport] = useState(true);
+    const [obfuscationLevel, setObfuscationLevel] = useState(0);
+
+    const obfuscationFee = (obfuscationLevel / 100) * 5; // Max 5 VLT fee
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -83,8 +87,11 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
             isInstalled: false,
             requiredEndpoints: [], // This would be parsed from code in a real scenario
             icon,
+            allowExport,
+            isObfuscated: obfuscationLevel > 0,
+            obfuscationLevel,
         });
-        setName(''); setVersion('1.0.0'); setDescription(''); setPrice(0); setIsFree(true); setIcon('CubeAltIcon');
+        setName(''); setVersion('1.0.0'); setDescription(''); setPrice(0); setIsFree(true); setIcon('CubeAltIcon'); setFileName(''); setAllowExport(true); setObfuscationLevel(0);
     };
 
     return (
@@ -94,11 +101,25 @@ const SubmitExtensionView: React.FC<{ onSubmit: DeveloperPortalProps['onExtensio
             <input type="text" placeholder="Version (e.g., 1.0.0)" value={version} onChange={e => setVersion(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
             <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" rows={3} required />
             <input type="text" placeholder="Icon Name (e.g., RadarIcon, CubeAltIcon)" value={icon} onChange={e => setIcon(e.target.value)} className="w-full bg-slate-800 p-2 rounded border border-slate-600" required />
-            <div className="flex items-center gap-4">
+             <div className="bg-slate-900/50 p-2 rounded border border-slate-600">
+                <label htmlFor="file-upload" className="w-full text-center cursor-pointer p-2 bg-slate-700 hover:bg-slate-600 rounded-md block">
+                    {fileName ? `Selected: ${fileName}` : "Upload Extension (.zip)"}
+                </label>
+                <input id="file-upload" type="file" className="hidden" onChange={e => setFileName(e.target.files?.[0]?.name || '')} accept=".zip" />
+             </div>
+             <div className="flex items-center gap-4">
                  <label className="flex items-center gap-2"><input type="checkbox" checked={isFree} onChange={e => setIsFree(e.target.checked)} /> Free</label>
                 {!isFree && <input type="number" placeholder="Price (VLT)" value={price} onChange={e => setPrice(Number(e.target.value))} className="bg-slate-800 p-2 rounded border border-slate-600 w-32" />}
             </div>
-            <p className="text-xs text-slate-400">Code analysis, endpoint requirement parsing, and NFT contract generation (using AxiomScript) are simulated upon submission.</p>
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Source Code Obfuscation</label>
+                <input type="range" min="0" max="100" step="10" value={obfuscationLevel} onChange={e => setObfuscationLevel(Number(e.target.value))} className="w-full" />
+                <div className="flex justify-between text-xs">
+                    <span>{obfuscationLevel}% (Fee: {obfuscationFee.toFixed(2)} VLT)</span>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={allowExport} onChange={e => setAllowExport(e.target.checked)} /> Allow Export</label>
+                </div>
+            </div>
+            <p className="text-xs text-slate-400">Code analysis, endpoint parsing, and NFT contract generation (using AxiomScript) are simulated upon submission.</p>
             <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 p-3 font-semibold rounded-lg">Submit for Validation</button>
         </form>
     )

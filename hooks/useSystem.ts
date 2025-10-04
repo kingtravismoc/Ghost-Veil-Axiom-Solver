@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { sha256 } from 'js-sha256';
@@ -112,7 +111,7 @@ const useSystem = () => {
     const [functionProtocols, setFunctionProtocols] = useState<FunctionProtocol[]>([]);
     const [treasuryState, setTreasuryState] = useState<TreasuryState | null>(null);
     const [showNetworkDetailModal, setShowNetworkDetailModal] = useState(false);
-    const [signalToAnnotate, setSignalToAnnotate] = useState<Signal | null>(null);
+    const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
     const [showSignalAnnotationModal, setShowSignalAnnotationModal] = useState(false);
     const [isClassifyingSignal, setIsClassifyingSignal] = useState(false);
     const [cognitiveMetricsState, setCognitiveMetricsState] = useState<CognitiveMetricsState>({ bioCoherence: 75, subconsciousInfluence: 10, neuralEntrainment: 5 });
@@ -133,9 +132,12 @@ const useSystem = () => {
     useEffect(() => {
         // Default extensions
         setExtensions([
-            { id: 'ext_sdr_plus_plus', name: 'SDR++ Advanced', description: 'Professional-grade interface for deep spectrum analysis.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['startScan', 'stopScan', 'getSignals'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_SDRPP_CORE', icon: 'RadarIcon' },
-            { id: 'ext_ble_mesh', name: 'BLE Mesh Manager', description: 'Discover, inspect, and manage local Bluetooth Low Energy devices and their GATT attributes.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_BLE_CORE', icon: 'UsersIcon' },
-            { id: 'ext_entropy_rng', name: 'Signal Entropy RNG', description: 'Provides high-quality random numbers generated from spectrum noise, accessible via an API hook.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['getSignals', 'addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_RNG_CORE', icon: 'CubeAltIcon' },
+// FIX: Added missing properties to conform to the Extension type.
+{ id: 'ext_sdr_plus_plus', name: 'SDR++ Advanced', description: 'Professional-grade interface for deep spectrum analysis.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['startScan', 'stopScan', 'getSignals'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_SDRPP_CORE', icon: 'RadarIcon', installDate: '01/01/2024', userCount: 1337, githubUrl: 'https://github.com/ghostveil/sdr-plus-plus', allowExport: true, isObfuscated: true },
+// FIX: Added missing properties to conform to the Extension type.
+{ id: 'ext_ble_mesh', name: 'BLE Mesh Manager', description: 'Discover, inspect, and manage local Bluetooth Low Energy devices and their GATT attributes.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_BLE_CORE', icon: 'UsersIcon', installDate: '01/01/2024', userCount: 987, githubUrl: 'https://github.com/ghostveil/ble-mesh', allowExport: true, isObfuscated: true },
+// FIX: Added missing properties to conform to the Extension type.
+{ id: 'ext_entropy_rng', name: 'Signal Entropy RNG', description: 'Provides high-quality random numbers generated from spectrum noise, accessible via an API hook.', authorId: 'GHOST_VEIL', authorAlias: 'Ghost Veil Core', authorName: 'Ghost Veil Core', version: '1.0.0', pricingModel: 'FREE', price: 0, isInstalled: true, requiredEndpoints: ['getSignals', 'addLog'], validationTests: 10, status: 'PUBLISHED', isNft: true, contractId: 'GVC_RNG_CORE', icon: 'CubeAltIcon', installDate: '01/01/2024', userCount: 2401, githubUrl: 'https://github.com/ghostveil/entropy-rng', allowExport: false, isObfuscated: true },
         ]);
 
         try {
@@ -205,14 +207,14 @@ const useSystem = () => {
     }, []);
     
     useEffect(() => {
-        if (signalToAnnotate) {
+        if (selectedSignal) {
             setShowSignalAnnotationModal(true);
         }
-    }, [signalToAnnotate]);
+    }, [selectedSignal]);
     
     useEffect(() => {
         if (!showSignalAnnotationModal) {
-            setSignalToAnnotate(null);
+            setSelectedSignal(null);
         }
     }, [showSignalAnnotationModal]);
 
@@ -383,18 +385,36 @@ const useSystem = () => {
     };
 
     const updateSignalAnnotation = (signalId: string, data: { classification: string, summary: string, tags: string }) => {
-        setSignals(prevSignals => prevSignals.map(s => {
-            if (s.id === signalId) {
-                return {
-                    ...s,
-                    isClassified: true,
-                    classification: data.classification,
-                    summary: data.summary,
-                    tags: data.tags.split(',').map(t => t.trim()).filter(Boolean),
-                };
-            }
-            return s;
-        }));
+        const newSignalData = {
+            isClassified: true,
+            classification: data.classification,
+            summary: data.summary,
+            tags: data.tags.split(',').map(t => t.trim()).filter(Boolean),
+        };
+
+        setSignals(prevSignals => prevSignals.map(s => 
+            s.id === signalId ? { ...s, ...newSignalData } : s
+        ));
+        
+        // Also update the selectedSignal if it's the one being annotated
+        setSelectedSignal(prev => prev && prev.id === signalId ? { ...prev, ...newSignalData } : prev);
+    };
+
+    const downloadSignalIntel = (signalId: string) => {
+        addLog(`Querying P2P Axiom Network for intel on signal ${signalId}...`, 'NETWORK');
+        setTimeout(() => {
+            const mockIntel = {
+                classification: 'Known P2P Data Beacon',
+                summary: 'Standard data packet from a node in the Axiom network.',
+                tags: ['p2p', 'beacon', 'axiom-net'],
+                origin: `p2p_intel_${p2pState.nodes[1].alias}`
+            };
+            
+            setSignals(prev => prev.map(s => s.id === signalId ? {...s, ...mockIntel, isClassified: true} : s));
+            setSelectedSignal(prev => prev && prev.id === signalId ? {...prev, ...mockIntel, isClassified: true} : prev);
+            
+            addLog(`Intel downloaded from peer ${p2pState.nodes[1].alias}. Signal updated.`, 'NETWORK');
+        }, 2000);
     };
     
     const handleEngageWaveMask = () => {
@@ -672,15 +692,15 @@ User Request: "${newTriggerData.naturalLanguage}"`;
         implantedDevices, isScanningImplants, selectedDeviceForDetail, isHidingDevice, safetyCheckResult, isFirstRun, isFork, currentUser,
         friends, govApplications, showAddFriendModal, showShareModal, showGovSignupModal, networks, selectedNetwork, showAddNetworkModal,
         systemStatus, triggers, showTriggersModal, isProcessingTrigger, extensions, developerProfile, wallet, extensionToPurchase, showWalletModal, showBuyTokensModal, showWithdrawModal, systemConfig,
-        isCommerceEnabled, showAdminSetup, isSuperAdmin, showNetworkDetailModal, signalToAnnotate, showSignalAnnotationModal, isClassifyingSignal,
+        isCommerceEnabled, showAdminSetup, isSuperAdmin, showNetworkDetailModal, selectedSignal, showSignalAnnotationModal, isClassifyingSignal,
         functionProtocols, treasuryState, cognitiveMetricsState, activeOperations, isWaveMaskActive, isWaveMaskMeasuring, activeExtensionId,
         
         setAiConfig, setScanMode, setProtectionStrategy, setSelectedDeviceForDetail, setShowAddFriendModal, setShowShareModal, setShowGovSignupModal,
         setSelectedNetwork, setShowAddNetworkModal, setShowTriggersModal, setExtensionToPurchase, setShowWalletModal, setShowBuyTokensModal, setShowWithdrawModal,
-        setShowNetworkDetailModal, setSignalToAnnotate, setShowSignalAnnotationModal, setActiveExtensionId,
+        setShowNetworkDetailModal, setSelectedSignal, setShowSignalAnnotationModal, setActiveExtensionId,
         
         addLog, handleAcknowledgeFirstRun, addFriend, submitGovApplication, addCustomNetwork, purchaseExtension, installExtension, uninstallExtension, submitExtension, buyTokens, 
-        completeAdminSetup, verifyGithubToken, classifySignalWithAI, updateSignalAnnotation, submitFunctionProtocol, withdrawTokens,
+        completeAdminSetup, verifyGithubToken, classifySignalWithAI, updateSignalAnnotation, submitFunctionProtocol, withdrawTokens, downloadSignalIntel,
 
         sdrDevilProps, detectedThreatsProps, axiomSilenceProps, ghostNetTriageProps, herdHealthProps,
         persistenceProps, bioImplantProps, deviceDetailProps, triggerProps, adminDashboardProps, waveMaskProps

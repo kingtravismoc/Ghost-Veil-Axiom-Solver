@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Extension, SystemStatus, ScanMode, ProtectionStrategy, LogType, Wallet, Signal, Threat, P2PNode } from '../types';
 import { XIcon } from './icons';
@@ -7,6 +6,9 @@ import { XIcon } from './icons';
 import SdrPlusPlusExtension from './extensions/SdrPlusPlusExtension';
 import BleMeshExtension from './extensions/BleMeshExtension';
 import EntropyRngExtension from './extensions/EntropyRngExtension';
+import ProjectExporterExtension from './extensions/ProjectExporterExtension';
+import SystemIntegrityScannerExtension from './extensions/SystemIntegrityScannerExtension';
+
 
 // Define the SDK that will be passed to extensions
 export interface GhostVeilSdk {
@@ -46,7 +48,7 @@ const ExtensionHost: React.FC<ExtensionHostProps> = ({ extensionId, system, onCl
             p2pNodes: system.p2pState.nodes,
             wallet: system.wallet,
         }),
-        startScan: system.sdrDevilProps.startMonitoring,
+        startScan: (mode: ScanMode) => system.sdrDevilProps.setScanMode(mode) && system.sdrDevilProps.startMonitoring(),
         stopScan: system.sdrDevilProps.stopMonitoring,
         activateVeil: system.sdrDevilProps.activateProtection,
         deactivateVeil: system.sdrDevilProps.deactivateProtection,
@@ -75,12 +77,16 @@ const ExtensionHost: React.FC<ExtensionHostProps> = ({ extensionId, system, onCl
 
     const renderExtension = () => {
         switch (extensionId) {
-            case 'ext_sdr_plus_plus':
+            case 'ext_sdr_devil_core':
                 return <SdrPlusPlusExtension sdk={sdk} />;
             case 'ext_ble_mesh':
                 return <BleMeshExtension sdk={sdk} />;
             case 'ext_entropy_rng':
                 return <EntropyRngExtension sdk={sdk} />;
+            case 'ext_project_exporter':
+                return <ProjectExporterExtension sdk={sdk} />;
+            case 'ext_sys_integrity':
+                return <SystemIntegrityScannerExtension sdk={sdk} />;
             default:
                 return <div className="p-4 text-red-400">Error: Extension with ID "{extensionId}" not found.</div>;
         }

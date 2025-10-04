@@ -15,6 +15,7 @@ export interface Signal {
   tags?: string[];
   summary?: string;
   isClassified?: boolean;
+  origin?: string; // To track downloaded intel, e.g., "p2p_intel_OP_1234"
 }
 
 export type ThreatRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'EXTREME';
@@ -232,7 +233,7 @@ export interface Wallet {
     agtBalance: number; // AGT (Axiom Governance Tokens)
 }
 
-export type TransactionType = 'PURCHASE' | 'DEPOSIT' | 'WITHDRAWAL' | 'SALE' | 'MINT';
+export type TransactionType = 'PURCHASE' | 'DEPOSIT' | 'WITHDRAWAL' | 'SALE' | 'MINT' | 'FEE';
 export interface Transaction {
     id: string;
     timestamp: number;
@@ -254,6 +255,7 @@ export interface Extension {
     description: string;
     authorId: string;
     authorAlias: string;
+    authorName: string; // New
     version: string;
     pricingModel: 'FREE' | 'FIXED_PRICE';
     price: number;
@@ -264,6 +266,11 @@ export interface Extension {
     isNft: boolean;
     contractId: string | null;
     icon: string;
+    installDate: string; // New
+    userCount: number; // New
+    githubUrl: string; // New
+    allowExport: boolean; // New
+    isObfuscated: boolean; // New
 }
 
 export interface SDKEndpoint {
@@ -325,6 +332,7 @@ export interface TreasuryState {
 export interface CognitiveMetricsState {
     bioCoherence: number;
     subconsciousInfluence: number;
+
     neuralEntrainment: number;
 }
 
