@@ -21,6 +21,7 @@ import AIConfigStrip from './components/AIConfigStrip';
 import SystemDashboard from './components/SystemDashboard';
 import ContinuityProtocol from './components/ContinuityProtocol';
 import FrequencySafetyControl from './components/FrequencySafetyControl';
+import SystemPersistenceControl from './components/SystemPersistenceControl';
 
 declare global {
     interface Window {
@@ -70,6 +71,9 @@ const App: React.FC = () => {
 
     const [userFrequencyBlocks, setUserFrequencyBlocks] = useState<UserFrequencyBlock[]>([]);
     const [isProcessingFrequency, setIsProcessingFrequency] = useState<boolean>(false);
+
+    const [isIntelligentScanning, setIsIntelligentScanning] = useState<boolean>(false);
+    const [isDaemonDeployed, setIsDaemonDeployed] = useState<boolean>(false);
 
     const monitorIntervalRef = useRef<number | null>(null);
     const audioIntervalRef = useRef<number | null>(null);
@@ -327,6 +331,56 @@ const App: React.FC = () => {
             setTotalSignalsProcessed(prev => prev + newSignals.length);
         }, 200);
     }, [sdrConnected, scanMode, addLogEntry]);
+    
+    const handleIntelligentScan = useCallback(async () => {
+        if (!sdrConnected) return;
+        setIsIntelligentScanning(true);
+        addLogEntry('Intelligent Scan initiated. AI Core is analyzing optimal parameters...', 'AI');
+        
+        if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
+            addLogEntry('Local model: Simulating optimal settings.', 'AI');
+            await new Promise(res => setTimeout(res, 1500));
+            setScanMode('ANOMALY_SCAN');
+            setProtectionStrategy('DYNAMIC_MIMICRY');
+            addLogEntry('AI recommends ANOMALY_SCAN and DYNAMIC_MIMICRY strategy.', 'AI');
+            setIsIntelligentScanning(false);
+            startMonitoring();
+            return;
+        }
+
+        const threatSummary = detectedThreats.length > 0
+            ? `Current threats identified: ${detectedThreats.map(t => t.type).join(', ')}.`
+            : 'The environment is currently clear of known threats.';
+        
+        const prompt = `You are a counter-surveillance AI. Given the situation, determine the optimal configuration.
+        Situation: ${threatSummary}
+        Available Scan Modes: WIDEBAND_SWEEP, ANOMALY_SCAN, PASSIVE_INTERCEPT.
+        Available Protection Strategies: QUANTUM_NOISE, DYNAMIC_MIMICRY, DECENTRALIZED_OBFUSCATION.
+        Return a single JSON object with your chosen 'scanMode' and 'protectionStrategy'.`;
+
+        try {
+            const response = await aiClient.models.generateContent({
+                model: "gemini-2.5-flash", contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: { type: Type.OBJECT, properties: { scanMode: { type: Type.STRING }, protectionStrategy: { type: Type.STRING } } }
+                }
+            });
+            const { scanMode: newScanMode, protectionStrategy: newProtectionStrategy } = JSON.parse(response.text);
+            setScanMode(newScanMode);
+            setProtectionStrategy(newProtectionStrategy);
+            addLogEntry(`AI Core recommends: ${newScanMode} and ${newProtectionStrategy}.`, 'AI');
+            startMonitoring();
+        } catch (error) {
+            console.error("Intelligent Scan failed:", error);
+            addLogEntry('Intelligent Scan failed. Defaulting to WIDEBAND_SWEEP.', 'ERROR');
+            setScanMode('WIDEBAND_SWEEP');
+            startMonitoring();
+        } finally {
+            setIsIntelligentScanning(false);
+        }
+    }, [sdrConnected, aiClient, aiConfig, startMonitoring, addLogEntry, detectedThreats]);
+
 
     const activateProtection = useCallback(async () => {
         if (detectedThreats.length === 0 || !sdrConnected || systemStatus === 'OMEGA_LIVE') return;
@@ -336,16 +390,17 @@ const App: React.FC = () => {
         let prompt: string;
         
         const latestInsight = mlInsights[0] ? `System has this ML-generated insight: "${mlInsights[0].description}". Integrate this into your strategy.` : "";
+        const safetyDirective = "IMPORTANT SAFETY CONSTRAINT: The generated countermeasures must explicitly avoid disrupting known medical device frequencies (e.g., MedRadio 402-405 MHz, pacemakers, insulin pumps). Prioritize human safety. This is a non-negotiable directive.";
 
         if (p2pState.doomsdayActive) {
             addLogEntry(`Executing OVERRIDE DIRECTIVE...`, 'ERROR');
-            prompt = `THE AXIOM CONTINUITY PROTOCOL (DOOMSDAY) HAS BEEN ACTIVATED. A global, high-priority threat has been confirmed by failsafe authorities. Your task is to devise a definitive, full-spectrum counter-protocol to neutralize all hostile signals network-wide. This is the highest level of response. Generate an overwhelming set of 'countermeasures' and 'obfuscationLayers'. The primary countermeasure MUST be sourced from 'DISTRIBUTED' and have an 'effectiveness' of 1.0. Spare no expense. This is a critical, system-wide directive.`;
+            prompt = `THE AXIOM CONTINUITY PROTOCOL (DOOMSDAY) HAS BEEN ACTIVATED. A global, high-priority threat has been confirmed. Your task is to devise a definitive, full-spectrum counter-protocol to neutralize all hostile signals network-wide. This is the highest level of response. Generate an overwhelming set of 'countermeasures' and 'obfuscationLayers'. The primary countermeasure MUST be sourced from 'DISTRIBUTED' and have an 'effectiveness' of 1.0. Spare no expense. ${safetyDirective}`;
         } else if (isDistributedResponse) {
             addLogEntry(`Initiating Distributed Response with network consensus...`, 'NETWORK');
-            prompt = `A P2P network has reached consensus on a macro-threat: "${p2pState.macroThreat.name}" (${p2pState.macroThreat.objective}). Your task is to devise a *distributed* countermeasure strategy using the "${protectionStrategy.replace(/_/g, ' ')}" philosophy. Describe the primary countermeasure 'method', its 'implementation', and a very high 'effectiveness'. Mark its source as 'DISTRIBUTED'. Also generate supplementary local obfuscation layers for each node. ${latestInsight} Provide JSON with 'countermeasures' and 'obfuscationLayers'.`;
+            prompt = `A P2P network has reached consensus on a macro-threat: "${p2pState.macroThreat.name}" (${p2pState.macroThreat.objective}). Your task is to devise a *distributed* countermeasure strategy using the "${protectionStrategy.replace(/_/g, ' ')}" philosophy. Describe the primary countermeasure 'method', its 'implementation', and a very high 'effectiveness'. Mark its source as 'DISTRIBUTED'. Also generate supplementary local obfuscation layers. The risk of collateral damage is high. ${safetyDirective} Provide JSON with 'countermeasures' and 'obfuscationLayers'.`;
         } else {
              addLogEntry(`Engaging Ghost Veil for local protection...`, 'SYSTEM');
-             prompt = `Threats detected. You are a Dynamic Threat Response Coordinator. Select the optimal, multi-threaded countermeasures based on the "${protectionStrategy.replace(/_/g, ' ')}" strategy. Threats: ${JSON.stringify(detectedThreats)}. ${latestInsight} Provide JSON with 'countermeasures' and 'obfuscationLayers'. Mark countermeasure source as 'LOCAL'.`;
+             prompt = `Threats detected. You are a Dynamic Threat Response Coordinator. Select optimal, multi-threaded countermeasures based on the "${protectionStrategy.replace(/_/g, ' ')}" strategy. Threats: ${JSON.stringify(detectedThreats)}. ${latestInsight} ${safetyDirective} Provide JSON with 'countermeasures' and 'obfuscationLayers'. Mark countermeasure source as 'LOCAL'.`;
         }
         
         addLogEntry('Requesting countermeasure protocol from AI Core...', 'AI');
@@ -353,7 +408,7 @@ const App: React.FC = () => {
         if (!aiClient || aiConfig.provider === 'LOCAL_SIMULATED') {
             addLogEntry(`Using local model to simulate countermeasures.`, 'AI');
             const simResult = {
-                countermeasures: [{ threatType: 'SIMULATED', method: 'Simulated Harmonic Nullification', implementation: 'Local Noise Generation', waveform: 'Sawtooth Inverse', effectiveness: 0.85, source: p2pState.doomsdayActive ? 'DISTRIBUTED' : 'LOCAL' }],
+                countermeasures: [{ threatType: 'SIMULATED', method: 'Simulated Harmonic Nullification', implementation: 'Local Noise Generation (Med-Safe)', waveform: 'Sawtooth Inverse', effectiveness: 0.85, source: p2pState.doomsdayActive ? 'DISTRIBUTED' : 'LOCAL' }],
                 obfuscationLayers: [{ name: 'Simulated Quantum Veil', type: 'DATA_SCATTERING', status: 'active', effectiveness: 0.91 }]
             };
             setActiveCountermeasures(simResult.countermeasures as Countermeasure[]);
@@ -513,7 +568,7 @@ const App: React.FC = () => {
 
         try {
             // Step 1: Safety Check
-            const safetyPrompt = `Analyze the frequency ${freq} MHz. Is it associated with critical infrastructure (e.g., aviation, medical, emergency services), known human biological processes, or standard safe communication protocols like Wi-Fi/Bluetooth? Your response must be a single JSON object with a boolean 'isSafeToBlock' and a short string 'reasoning'.`;
+            const safetyPrompt = `Analyze the frequency ${freq} MHz. Is it associated with critical infrastructure (e.g., aviation, medical, emergency services), known human biological processes, or standard safe communication protocols? Crucially, determine if this frequency is used by any common medical implants or devices (e.g., pacemakers, insulin pumps, neurostimulators in the 402-405 MHz MedRadio band). Prioritize human safety above all else. Your response must be a single JSON object with a boolean 'isSafeToBlock' and a short string 'reasoning'. If it is a medical frequency, 'isSafeToBlock' must be false.`;
             const safetyResponse = await aiClient.models.generateContent({
                 model: "gemini-2.5-flash", contents: safetyPrompt,
                 config: {
@@ -562,6 +617,18 @@ const App: React.FC = () => {
 
     }, [addLogEntry, aiClient, aiConfig]);
 
+    const handleDaemonDeploy = useCallback(() => {
+        addLogEntry('Initiating persistent agent deployment...', 'SYSTEM');
+        setTimeout(() => addLogEntry('Loading runtime into browser cache...', 'SYSTEM'), 500);
+        setTimeout(() => addLogEntry('Attempting persistence layer... (Sandboxed)', 'SYSTEM'), 1200);
+        setTimeout(() => addLogEntry('Simulating integrity check bypass...', 'WARN'), 2000);
+        setTimeout(() => addLogEntry('Elevating permissions in sandboxed environment...', 'WARN'), 2800);
+        setTimeout(() => {
+            addLogEntry('Agent deployed to simulated sandbox: /private/tmp/ghost_veil', 'SYSTEM');
+            setIsDaemonDeployed(true);
+        }, 3500);
+    }, [addLogEntry]);
+
     const significantSignals = signals.filter(s => s.amplitude > 60 && s.snr > 25);
     
     let activateButtonText = 'Activate Veil';
@@ -580,15 +647,15 @@ const App: React.FC = () => {
                 onApplyConfig={handleApplyAIConfig}
              />
             
-            <main className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-4">
-                <div className="lg:col-span-3 space-y-6">
+            <main className="grid grid-cols-1 md:grid-cols-5 gap-6 mt-4">
+                <div className="md:col-span-3 space-y-6">
                     <SpectrumAnalyzer signals={signals} />
                     <DetectedSignals signals={significantSignals} />
                     <DetectedThreats threats={detectedThreats} onTraceback={handleTraceback} onToggleMute={handleToggleMute} onToggleSolo={handleToggleSolo} isTracing={isTracing} />
                     <LogPanel logEntries={logEntries} />
                 </div>
                 
-                <div className="lg:col-span-2 space-y-6">
+                <div className="md:col-span-2 space-y-6">
                     <SdrDevilControl
                         isMonitoring={isMonitoring} isLoading={isLoading} isProtected={isProtected}
                         canActivate={detectedThreats.length > 0 && sdrConnected}
@@ -601,6 +668,8 @@ const App: React.FC = () => {
                         activateProtection={activateProtection}
                         deactivateProtection={deactivateProtection}
                         activateButtonText={activateButtonText}
+                        isIntelligentScanning={isIntelligentScanning}
+                        onIntelligentScan={handleIntelligentScan}
                     />
                      <SystemDashboard 
                         totalSignals={totalSignalsProcessed}
@@ -629,6 +698,10 @@ const App: React.FC = () => {
                         nodes={p2pState.nodes}
                         macroThreat={p2pState.macroThreat}
                     />
+                    <SystemPersistenceControl
+                        isDeployed={isDaemonDeployed}
+                        onDeploy={handleDaemonDeploy}
+                    />
                     {SHOW_CONTINUITY_PROTOCOL && <ContinuityProtocol sentinels={p2pState.sentinels} doomsdayActive={p2pState.doomsdayActive} />}
                     <AxiomTracebackMap tracebackData={tracebackData} isTracing={isTracing} />
                     <ObfuscationLayers layers={obfuscationLayers} isProtected={isProtected} />
@@ -637,7 +710,7 @@ const App: React.FC = () => {
                 </div>
             </main>
             <footer className="text-center mt-8 text-xs text-slate-500 font-mono space-y-2">
-                <p>Ghost Veil Axiom Resolver v3.0.1 :: OMEGA PROTOCOL ENABLED</p>
+                <p>Ghost Veil Axiom Resolver v3.1.0 :: OMEGA PROTOCOL ENABLED :: MED-SAFE ACTIVE</p>
                 <p>&copy; {new Date().getFullYear()} Axiom Cybernetics Division. All rights reserved.</p>
                 <p className="text-slate-400 italic pt-2">"FOR YOUR MIND, THIS IS YOURS -- NOW LIVE YOUR LIFE AGAIN."</p>
             </footer>
