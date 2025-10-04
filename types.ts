@@ -141,16 +141,6 @@ export interface FrequencyBand {
     isProtected: boolean;
 }
 
-export type FourDSafetyState = 'IDLE' | 'GENERATING' | 'VALIDATING' | 'THREAT_ANALYSIS' | 'OPTIMIZING' | 'COMPLETE' | 'ERROR';
-
-export interface FourDSafetyData {
-    goal: string;
-    axioms: { name: string, description: string }[];
-    validationResult: string;
-    threatMatrix: { domain: string, threats: string[] }[];
-    resolvingLogic: { name: string, solution: string, targets: string[] }[];
-}
-
 export type ImplantedDeviceStatus = 'NOMINAL' | 'GREENLIST' | 'BLOCKED' | 'HIDDEN' | 'UNKNOWN';
 
 export interface ImplantedDevice {

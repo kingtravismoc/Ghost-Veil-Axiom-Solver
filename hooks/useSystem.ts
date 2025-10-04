@@ -5,13 +5,12 @@ import type {
     Traceback, MLInsight, P2PNode, MacroThreat, MicrophoneStatus, AudioThreat,
     ScanMode, ProtectionStrategy, Sentinel, AIConfig, ActivityEvent, P2PState,
     ImplantedDevice, ImplantedDeviceStatus, UserProfile, GovApplication, Friend, Network,
-    SystemStatus, Trigger, Wallet, DeveloperProfile, Extension, Transaction, FourDSafetyData, FourDSafetyState, SystemConfig, OmegaProtocolState
+    SystemStatus, Trigger, Wallet, DeveloperProfile, Extension, Transaction, SystemConfig, OmegaProtocolState
 } from '../types';
 import { sdrDevilService } from '../services/sdrDevilService';
 import { audioAnalysisService } from '../services/audioAnalysisService';
 import { p2pNetworkService } from '../services/p2pNetworkService';
 import { validationService } from '../services/validationService';
-import { dataValidationService } from '../services/dataValidationService';
 import { secureCommService } from '../services/secureCommService';
 
 // --- SUPER ADMIN CONTROL ---
@@ -52,8 +51,6 @@ const useSystem = () => {
     const [acuity, setAcuity] = useState(0.5);
     const [isPersistenceDeployed, setIsPersistenceDeployed] = useState(false);
     const [isDeployingPersistence, setIsDeployingPersistence] = useState(false);
-    const [fourDSafetyState, setFourDSafetyState] = useState<FourDSafetyState>('IDLE');
-    const [fourDSafetyData, setFourDSafetyData] = useState<FourDSafetyData | null>(null);
     const [implantedDevices, setImplantedDevices] = useState<ImplantedDevice[]>([]);
     const [isScanningImplants, setIsScanningImplants] = useState(false);
     const [selectedDeviceForDetail, setSelectedDeviceForDetail] = useState<ImplantedDevice | null>(null);
@@ -265,7 +262,6 @@ const useSystem = () => {
     const herdHealthProps = { isActive: p2pState.isActive, onToggle: (isActive: boolean) => setP2pState(p => ({ ...p, isActive})), nodes: p2pState.nodes, macroThreat };
     const systemDashboardProps = { totalSignals, significantSignals: signals.filter(s => s.amplitude > 60).length, threats: threats.length, p2pState, acuity, insights: mlInsights, activityEvents };
     const persistenceProps = { isDeployed: isPersistenceDeployed, isDeploying: isDeployingPersistence, onDeploy: () => { setIsDeployingPersistence(true); setTimeout(() => { setIsPersistenceDeployed(true); setIsDeployingPersistence(false); }, 2000)} };
-    const fourDSafetyProps = { onGenerate: () => {}, processState: fourDSafetyState, data: fourDSafetyData };
     const bioImplantProps = { devices: implantedDevices, isScanning: isScanningImplants, onScan: () => {}, onSelectDevice: setSelectedDeviceForDetail, p2pNodes: p2pState.nodes };
     const deviceDetailProps = { onUpdateStatus: () => {}, onHideDevice: () => {}, isHiding: isHidingDevice, safetyCheckResult: hideSafetyCheckResult };
     const triggerProps = { triggers, onAddTrigger: async () => {}, onToggleTrigger: () => {}, onDeleteTrigger: () => {}, isProcessing: isProcessingTrigger };
@@ -290,7 +286,7 @@ const useSystem = () => {
         // State
         signals, threats, logEntries, isMonitoring, isLoading, isProtected, obfuscationLayers, countermeasures, tracebackData, isTracing,
         mlInsights, p2pState, macroThreat, selectedP2PNodes, micStatus, ambientNoise, audioThreats, scanMode, protectionStrategy, sentinels,
-        aiConfig, activityEvents, totalSignals, acuity, isPersistenceDeployed, isDeployingPersistence, fourDSafetyState, fourDSafetyData,
+        aiConfig, activityEvents, totalSignals, acuity, isPersistenceDeployed, isDeployingPersistence,
         implantedDevices, isScanningImplants, selectedDeviceForDetail, isHidingDevice, hideSafetyCheckResult, isFirstRun, isFork, currentUser,
         friends, govApplications, showAddFriendModal, showShareModal, showGovSignupModal, networks, selectedNetwork, showAddNetworkModal,
         systemStatus, triggers, showTriggersModal, isProcessingTrigger, extensions, developerProfile, wallet, extensionToPurchase, showWalletModal, showBuyTokensModal, systemConfig,
@@ -318,7 +314,6 @@ const useSystem = () => {
         herdHealthProps,
         systemDashboardProps,
         persistenceProps,
-        fourDSafetyProps,
         bioImplantProps,
         deviceDetailProps,
         triggerProps

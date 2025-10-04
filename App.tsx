@@ -23,7 +23,6 @@ import ManagementTabs from './components/ManagementTabs';
 import AdminDashboard from './components/AdminDashboard';
 import UserManagementDashboard from './components/UserManagementDashboard';
 import FrequencyCatalog from './components/FrequencyCatalog';
-import FourDSafetyAxiomGenerator from './components/FourDSafetyAxiomGenerator';
 import BioImplantDashboard from './components/BioImplantDashboard';
 import DeviceDetailModal from './components/DeviceDetailModal';
 import FirstRunModal from './components/FirstRunModal';
@@ -125,8 +124,7 @@ const App: React.FC = () => {
                                 </div>
                             )}
                             {activeManagementTab === 'Security' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FourDSafetyAxiomGenerator {...system.fourDSafetyProps} />
+                                <div className="grid grid-cols-1 gap-6">
                                     <FrequencySafetyControl />
                                 </div>
                             )}
